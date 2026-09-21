@@ -7,11 +7,6 @@
 # LICENSE file in the root directory of this source tree.
 
 
-"""
- Pipeline to train DPR Biencoder
-"""
-
-
 
 import argparse
 import glob
@@ -20,18 +15,15 @@ import math
 import os
 import random
 import time
-
 from comet_ml import Experiment
 import torch
 import torch.distributed as dist
-
 from typing import Tuple, Dict, Iterator, Callable
 from torch import nn
 from torch import Tensor as T
 from torch.cuda.amp import GradScaler, autocast
 from torch.utils.checkpoint import get_device_states, set_device_states
 from torch.utils.data import IterableDataset, DataLoader
-
 from dpr.models import init_biencoder_components
 from dpr.models.biencoder import BiEncoder, BiEncoderNllLoss, BiEncoderBatch
 from dpr.options import add_encoder_params, add_training_params, setup_args_gpu, set_seed, print_args, \
@@ -47,10 +39,6 @@ logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
     level=logging.INFO,
     datefmt='%Y-%m-%d %H:%M:%S')
-
-# Import comet_ml at the top of your file
-
-# Create an experiment with your api key
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -102,16 +90,11 @@ class RandContext:
 
 
 class BiEncoderTrainer(object):
-    """
-    BiEncoder training pipeline component. Can be used to initiate or resume training and validate the trained model
-    using either binary classification's NLL loss or average rank of the question's gold passages across dataset
-    provided pools of negative passages. For full IR accuracy evaluation, please see generate_dense_embeddings.py
-    and dense_retriever.py CLI tools.
-    """
+   
 
     def __init__(self, args):
         self.experiment = Experiment(
-            api_key="PS8IY0HG0jsA5QHuVSehUAb6H",
+            api_key="", #Ask me for API
             project_name="odqa-agg",
             workspace="ohadrubin",
             

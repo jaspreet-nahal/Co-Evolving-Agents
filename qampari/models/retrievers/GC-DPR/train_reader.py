@@ -6,10 +6,6 @@
 # LICENSE file in the root directory of this source tree.
 
 
-"""
- Pipeline to train the reader model on top of the retriever results
-"""
-
 import argparse
 import collections
 import glob
@@ -18,10 +14,8 @@ import logging
 import os
 from collections import defaultdict
 from typing import List
-
 import numpy as np
 import torch
-
 from dpr.data.qa_validation import exact_match_score
 from dpr.data.reader_data import ReaderSample, get_best_spans, SpanPrediction, convert_retriever_results
 from dpr.models import init_reader_components
@@ -87,7 +81,6 @@ class ReaderTrainer(object):
                                        num_shards=self.distributed_factor,
                                        batch_size=batch_size, shuffle=shuffle, shuffle_seed=shuffle_seed, offset=offset)
 
-        # apply deserialization hook
         iterator.apply(lambda sample: sample.on_deserialize())
         return iterator
 
@@ -130,7 +123,6 @@ class ReaderTrainer(object):
 
     def validate_and_save(self, epoch: int, iteration: int, scheduler):
         args = self.args
-        # in distributed DDP mode, save checkpoint for only one process
         save_cp = args.local_rank in [-1, 0]
         reader_validation_score = self.validate()
 
@@ -470,7 +462,6 @@ def main():
     parser.add_argument('--checkpoint_file_name', type=str, default='dpr_reader')
     parser.add_argument('--prediction_results_file', type=str, help='path to a file to write prediction results to')
 
-    # training parameters
     parser.add_argument("--eval_step", default=2000, type=int,
                         help="batch steps to run validation and save checkpoint")
     parser.add_argument("--output_dir", default=None, type=str,

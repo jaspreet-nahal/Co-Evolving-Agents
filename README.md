@@ -1,31 +1,177 @@
-# QAMPARI
-Official repository of the paper: "QAMPARI: An Open-domain Question Answering Benchmark for Questions with Many Answers from Multiple Paragraphs" (arxiv: https://arxiv.org/abs/2205.12665 website: https://samsam3232.github.io/qampari/)
+# Deep Research Agent Evaluation Harness
 
-QAMPARI is a dataset for Open Domain Question Answer (ODQA) composed of questions with many answers coming from multiple
-paragraphes. Unlike most of ODQA tasks, each question in QAMPARI has multiple answers. For example:  
-`What car models did Autozam produce? (simple question)`  
-`Where are the papers owned at some point in time by Voice Media Group published? (composition question)`  
-`Who studied at the Manhattan School of Music and also worked for Julliard School? (intersection question)`
+A comprehensive evaluation framework for testing deep-research agent models across multiple benchmarks, using a fixed agentic RAG harness with detailed logging and metrics.
 
-QAMPARI data was created in a semi-automatic manners based on Wikidata's knowledge graph and Wikipedia tables. We provide,
-along with 61911 train questions, 1000 dev questions and 1000 test questions. Answers for all dev and test questions were 
-manually validated by crowd workers, and all dev-test questions were rephrased by workers as well. For 200 questions from
-the test set, an expert annotator added as many answers missing from the gold set as possible under 12 minutes.
+## Overview
 
-We trained SOTA retrieve and read models on QAMPARI (retrievers: BM25 and DPR, readers: FiD and Passage Independent Generator)
-and found that their performance is not on par with their performance on other benchmarks. We used F1, recall, precision,
-recall>=0.8 and F1>=0.5 as metrics.  
+This harness evaluates three models across five benchmarks:
+- **Models**: Muse-Glimmer-30B, Qwen3.8-27B, Gemma-4-26B-A4B-it
+- **Benchmarks**: QAMPARI, BrowseComp-Plus, FinanceBench, TREC-Biogen, FreshStack
 
+The harness implements a **fixed 6-stage loop** (built once, reused across all benchmarks):
 
-| Model    | Training data  | F1  | Recall | Precision | Recall >= 0.8 | F1>=0.5 |  
-|:-----:   | :-------------:  | :---:  | :-----: | :---------: | :-------------: | :-------: |
-| **FiD-BM25** | **QAMPARI** | 28.3 | 25.1 | 36.8 | 6.8 | 24.2 |
-| **FiD-BM25** | **QAMPARI + NQ** | 29.7 | 26.9 | 37.7 | 7.4 | 25.6 |
-| **FiD-DPR** | **QAMPARI**| 5.7 | 3.6 | 20.4 | 0 | 1.2 |
-| **FiD-DPR** | **QAMPARI + NQ** | 7.7 | 5.3 | 21.3 | 0.1 | 2.4 |
-| **PIG-BM25** | **QAMPARI** | 31.0 | 43.1 | 30.7 | 26.7 | 26 |
-| **PIG-BM25** | **QAMPARI + NQ** | 30.5 | 47.9 | 28.2 | 31.2 | 22.3 |
-| **PIG-DPR** | **QAMPARI** | 3.0 | 18.9 | 1.8 | 4.2 | 0 |
-| **PIG-DPR** | **QAMPARI + NQ** | 3.1 | 18.0 | 1.9 | 4.2 | 0 |
+1. **Planner** — Decomposes query, extracts constraints as structured list
+2. **Search/Read** — Four tools modeled on Chroma's Context-1 design
+3. **Working Memory** — Accumulates evidence chunks with provenance
+4. **Sufficiency Check** — Explicit check: enough evidence for answer?
+5. **Synthesis** — Produces answer with chunk ID citations
+6. **Verifier** — Deterministic citation validation
 
-The repository is composed of two parts: the [data creation](/DataCreation/README.md) part and the [model training](/models/README.md) part.
+## Key Metrics (per Context-1 Report)
+
+- **Trajectory Recall**: Fraction of gold-relevant chunks encountered at any point
+- **Output Recall**: Fraction of gold-relevant chunks cited in final answer
+- **Failure Mode Detection**: "found but didn't use" vs "never found"
+
+## Project Structure
+
+```
+harness/
+├── core/                    # Harness core (6 stages)
+│   ├── models.py           # Data models (Trajectory, Chunk, etc.)
+│   ├── logger.py           # Stage logging
+│   ├── planner.py          # Stage 1: Query decomposition + constraints
+│   ├── search_read.py      # Stage 2: 4 Context-1 tools
+│   ├── working_memory.py   # Stage 3: Evidence accumulation
+│   ├── sufficiency_check.py# Stage 4: Explicit sufficiency check
+│   ├── synthesis.py        # Stage 5: Answer synthesis with citations
+│   ├── verifier.py         # Stage 6: Citation verification
+│   ├── metrics.py          # Trajectory/Output recall
+│   └── harness.py          # Main orchestration
+├── benchmarks/              # Benchmark adapters
+│   ├── qampari.py          # Stage 1: Multi-answer QA (READY)
+│   ├── browsecomp_plus.py  # Stage 2: Hard browsing (READY)
+│   ├── financebench.py     # Stage 3: Financial QA (READY)
+│   ├── trec_biogen.py      # Stage 4: TREC 2024 BioGen (NEEDS VERIFICATION)
+│   └── freshstack.py       # Stage 5: Procedural reasoning (NEEDS VERIFICATION)
+└── utils/                   # Utilities
+scripts/
+├── stage1_validate_qampari.py  # Stage 1 validation
+└── run_all_stages.py           # Main runner
+```
+
+## Stages
+
+### Stage 0: Harness Core ✅ COMPLETE
+All 6 stages implemented with:
+- Separate logging per stage per trajectory
+- Context-1 style search tools (search_corpus, grep_corpus, read_document, prune_chunks)
+- Re-retrieval loop prevention (tracks all seen chunk IDs)
+- Working memory with provenance tracking
+- Explicit sufficiency check as separate logged field
+- Synthesis with mandatory chunk citations
+- Verifier with deterministic checks
+- Trajectory/Output recall metrics
+
+### Stage 1: QAMPARI ✅ READY FOR VALIDATION
+- **Repo**: https://github.com/samsam3232/qampari
+- **Paper**: https://arxiv.org/abs/2205.12665
+- **Task**: Multi-answer questions requiring multiple paragraphs
+- **Key Feature**: Exhaustiveness scorer (checks complete answer SET)
+- **Validation**: Run `python scripts/stage1_validate_qampari.py`
+
+### Stage 2: BrowseComp-Plus ✅ READY
+- **Code**: https://github.com/texttron/BrowseComp-Plus
+- **Data**: https://huggingface.co/datasets/Tevatron/browsecomp-plus (obfuscated, needs decrypt)
+- **Corpus**: https://huggingface.co/datasets/Tevatron/browsecomp-plus-corpus (~100K docs)
+- **Indexes**: https://huggingface.co/datasets/Tevatron/browsecomp-plus-indexes (pre-built BM25 + Qwen3)
+- **Note**: Full run with frontier model costs ~$1000 for 830 queries
+
+### Stage 3: FinanceBench ✅ READY
+- **Repo**: https://github.com/patronus-ai/financebench
+- **Data**: https://huggingface.co/datasets/PatronusAI/financebench
+- **Scope**: Only 150 of 10,231 questions publicly available
+- **Task**: Financial document QA (extraction, reasoning, calculation)
+
+### Stage 4: TREC-Biogen ⚠️ VERIFICATION REQUIRED
+- **Track**: TREC 2024 Biomedical Generative Retrieval
+- **Access**: Via NIST TREC (trec.nist.gov) - likely requires data-use agreement
+- **Action**: Check `harness/benchmarks/trec_biogen.py` for verification checklist
+
+### Stage 5: FreshStack ⚠️ VERIFICATION REQUIRED
+- **Org**: https://huggingface.co/freshstack (Databricks/UWaterloo)
+- **Project**: https://fresh-stack.github.io
+- **Challenge**: Multiple splits by tech stack - must identify correct one(s)
+- **Action**: Check `harness/benchmarks/freshstack.py` for verification checklist
+
+## Installation
+
+```bash
+pip install -r requirements.txt
+# Required: numpy, requests, tqdm, pyyaml, datasets, huggingface-hub
+```
+
+## Running
+
+### Stage 1 Validation (Required First Step)
+```bash
+python scripts/stage1_validate_qampari.py
+```
+This validates all logged fields are populated correctly on a small sample (~20 questions).
+
+### Run Specific Stage
+```bash
+# Stage 1
+python scripts/run_all_stages.py --stage 1 --model muse_glimmer_30b
+
+# Stage 2 (after Stage 1 passes)
+python scripts/run_all_stages.py --stage 2 --model muse_glimmer_30b
+
+# Stage 3
+python scripts/run_all_stages.py --stage 3 --model muse_glimmer_30b
+```
+
+### Verify Stages 4-5 Access
+```bash
+python scripts/run_all_stages.py --stage 4 --verify-only
+python scripts/run_all_stages.py --stage 5 --verify-only
+```
+
+## Log Output
+
+Each trajectory creates a detailed log directory:
+```
+harness/logs/
+└── {query_id}/
+    ├── planner/*.json
+    ├── search_read/*.json
+    ├── working_memory/*.json
+    ├── sufficiency_check/*.json
+    ├── synthesis/*.json
+    ├── verifier/*.json
+    └── trajectory_summary.json
+```
+
+Benchmark results saved to:
+```
+harness/logs/{benchmark}/{model}/
+├── results_{timestamp}.json
+└── latest_results.json
+```
+
+## Key Design Decisions
+
+1. **Fixed Harness**: Same 6-stage loop for all benchmarks - only sufficiency criteria change
+2. **Explicit Constraints**: Planner extracts structured constraints, not implicit in prompts
+3. **Re-retrieval Prevention**: Global seen_chunk_ids set prevents loops (Context-1 finding)
+4. **Separate Sufficiency Log**: Distinct from final answer - enables "found but didn't use" detection
+5. **Mandatory Citations**: Every claim must cite chunk IDs; Verifier checks deterministically
+6. **Dual Recall Metrics**: Trajectory vs Output recall distinguishes retrieval vs synthesis failures
+
+## Next Steps
+
+1. ✅ Stage 0: Harness core built
+2. 🔄 Stage 1: Validate QAMPARI on small sample
+3. ⏳ Stage 2: Run BrowseComp-Plus (need decrypt + pre-built indexes)
+4. ⏳ Stage 3: Run FinanceBench (150 public questions)
+5. ⏳ Stage 4: Verify TREC-Biogen data access
+6. ⏳ Stage 5: Verify FreshStack split selection
+7. ⏳ Run all 3 models on validated benchmarks
+
+## Citation
+
+If you use this harness, please cite:
+- Context-1: https://www.trychroma.com/research/context-1
+- QAMPARI: https://arxiv.org/abs/2205.12665
+- BrowseComp-Plus: https://github.com/texttron/BrowseComp-Plus
+- FinanceBench: https://github.com/patronus-ai/financebench

@@ -10,9 +10,6 @@ from DataCreation.DataAlignment.utils.properties_constants import SELECTED_PRORP
 
 def check_labels(labels: List, sentences: str):
 
-    """
-    Looks for the labels within the wikipedia page, returns the first label found.
-    """
 
     for label in labels:
         currently_checked = find_all_phrases(sentences, label.lower())
@@ -23,10 +20,6 @@ def check_labels(labels: List, sentences: str):
 
 def align_entities(original_entity: str, entities: List, list_indices: Dict, relevant_infos: Dict, all_mappings: Dict, curr_question: Dict):
 
-    """
-    Given the original entity (the one in the question) and all the answers, tries to align each answer with the entity
-    (i.e to find e1 in the wikipedia page of e2 or the inverse).
-    """
 
     orig_url = all_mappings[original_entity]['url'] if (original_entity in all_mappings and 'url' in all_mappings[original_entity]) else ""
     original_sentence = get_webpage_sentences([orig_url], list_indices)
@@ -70,9 +63,6 @@ def align_entities(original_entity: str, entities: List, list_indices: Dict, rel
 
 def load_files(input_path: str, infos_path: str, list_indices_path: str, all_mappings_path: str):
 
-    """
-    Load the relevant data from the files.
-    """
 
     with open(input_path, 'r') as f:
         data = json.load(f)

@@ -3,8 +3,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 import uuid
 
-from .models import Chunk, CorpusChunk
-from .search_read import CorpusChunk as SearchReadCorpusChunk
+from .search_read import CorpusChunk
 
 
 @dataclass

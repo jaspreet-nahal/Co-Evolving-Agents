@@ -1,20 +1,10 @@
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-from harness.core import (
-    InMemoryCorpusIndex,
-    DeepResearchHarness,
-    HarnessConfig,
-    SufficiencyConfig,
-    SufficiencyCriterion
-)
-
+from harness.core import InMemoryCorpusIndex, DeepResearchHarness, HarnessConfig, SufficiencyConfig, SufficiencyCriterion
 
 def main():
-    print("=" * 60)
     print("HARNESS CORE DEMO: Single Trajectory")
-    print("=" * 60)
 
     print("\n1. Building sample corpus...")
     index = InMemoryCorpusIndex(chunk_size=200, chunk_overlap=50)
@@ -52,9 +42,7 @@ def main():
         benchmark="demo"
     )
 
-    print("\n" + "=" * 60)
     print("RESULTS")
-    print("=" * 60)
 
     print(f"\nQuery: {trajectory.query}")
     print(f"Model: {trajectory.model_name}")
@@ -93,9 +81,7 @@ def main():
     for log in trajectory.stage_logs:
         print(f"  {log.stage.value}: {log.duration_ms:.1f}ms")
 
-    print("\n" + "=" * 60)
     print("Demo complete! Check harness/logs/ for detailed logs.")
-    print("=" * 60)
 
 
 if __name__ == "__main__":

@@ -21,9 +21,6 @@ def read_tables(input_path):
 
 def retrieve_sentences(table: Dict, colnum: int, rowindex: int, indices_path: str):
 
-    """
-    Retrieves the sentences in the hyperlink of a given cell.
-    """
 
     cell = table['table']['table_rows'][rowindex][colnum]
     sentences = ""
@@ -34,9 +31,6 @@ def retrieve_sentences(table: Dict, colnum: int, rowindex: int, indices_path: st
 
 def align_appartenance(table, col1, indices_path):
 
-    """
-    Receives a table and a column number and verifies that each element in the row of the table is aligned wth the table.
-    """
 
     results = dict()
     col1_n = table['table']['header'][col1]['column_name']
@@ -70,10 +64,6 @@ def align_appartenance(table, col1, indices_path):
 
 def align_columns(table, col1, col2, indices_path):
 
-    """
-    Receives a table and two columns indices as inputs, and performs alignment on all the rows according to these two
-    columns.
-    """
 
     results = dict()
     col1_n = table['table']['header'][col1]['column_name']

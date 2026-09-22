@@ -12,9 +12,6 @@ import argparse
 
 def check_labels(labels: List, sentences: str):
 
-    """
-    Looks for the labels within the wikipedia page, returns the first label found.
-    """
 
     for label in labels:
         currently_checked = find_all_phrases(sentences, label.lower())
@@ -83,10 +80,6 @@ def find_possible_comps(answers: List, relevant_infos: Dict, wikidata_mappings: 
 def create_potential_questions(relevant_infos: Dict, wikidata_mappings: Dict, list_indices: Dict, questions_path: str,
                                output_path: str):
 
-    """
-    Given a path to the rephrased questions and all the relevant infos, will return a dict of all the possible questions
-    with the composition properties.
-    """
 
     all_questions = list()
     with open(questions_path, 'r') as f:

@@ -82,10 +82,6 @@ def get_aliases(entity):
 
 
 def find_all_phrases(text: str, substring, check_numeric=False):
-    """
-    Checks if a substring appears in a string, and if so returns all the instances of this substring.
-    If the substring is a number, checks it only if it is at least 3 digit long.
-    """
 
     if type(substring) == str:
         found_instances = list()

@@ -11,10 +11,6 @@ from typing import Dict, List
 
 def create_inverse_mappings(mapping):
 
-    """
-    Based on a mapping, inverses it and returns a dic of aliases as key and their basic name as value.
-    :param mapping: dictionary of answer names as key and a list of their aliases as values
-    """
 
     inverse_mapping = dict()
     for key in mapping:
@@ -25,11 +21,6 @@ def create_inverse_mappings(mapping):
 
 def load_data(input_path: str):
 
-    """
-    Loads the data depending on the format of the file:  a jsonl or json
-    :param input_path: path to  where the data is kept
-    :return: the loaded data represented with a list
-    """
 
     with open(input_path, 'r') as f:
         if 'jsonl' in input_path:
@@ -64,9 +55,6 @@ def exact_match_score(prediction, ground_truth):
 
 def create_mapping(prediction: Dict):
 
-    """
-    Create a mapping from an answer name to its aliases
-    """
 
     mapping = dict()
     for ans in prediction['answer_list']:
@@ -76,11 +64,6 @@ def create_mapping(prediction: Dict):
 
 def compute_metrics_qampari(predictions: List):
 
-    """
-    Computes the metrics for QAMPARI predictions.
-    :param predictions: all the QAMPARI predictions
-    :return: dictionary of the computed metrics
-    """
 
     metrics = {'precision': list(), 'recall': list(), 'f1': list()}
     for pred in predictions:
@@ -117,9 +100,6 @@ def compute_metrics_qampari(predictions: List):
 
 def compute_metrics_nq(predictions: List):
 
-    """
-    Computes the EM metric for preictions from NQ.
-    """
 
     has_em = list()
     for pred in predictions:
@@ -137,12 +117,6 @@ def compute_metrics_nq(predictions: List):
 
 def main(input_path: str, output_path: str = None, is_nq: bool = False):
 
-    """
-    Expect input to a prediction file. Expect a list of dicts of the following (minimum) format:
-    {"answer_list": list of dict({"answer_text": str, "aliases": list of str}),
-     "answers": list of str,
-     "predictions": list of str}
-    """
 
     data = load_data(input_path)
     metrics = compute_metrics_nq(data) if is_nq else compute_metrics_qampari(data)

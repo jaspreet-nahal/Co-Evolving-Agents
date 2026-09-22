@@ -6,9 +6,6 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""
-Utilities for general purpose data processing
-"""
 import more_itertools
 import json
 import logging
@@ -146,13 +143,6 @@ def read_data_from_json_files(paths: List[str], upsample_rates: List = None) -> 
     #         logger.info('Aggregated data size: {}'.format(len(results)))
 
 class ShardedDataIterator(object):
-    """
-    General purpose data iterator to be used for Pytorch's DDP mode where every node should handle its own part of
-    the data.
-    Instead of cutting data shards by their min size, it sets the amount of iterations by the maximum shard size.
-    It fills the extra sample by just taking first samples in a shard.
-    It can also optionally enforce identical batch size for all iterations (might be useful for DP mode).
-    """
 
     def __init__(self, data: list, shard_id: int = 0, num_shards: int = 1, batch_size: int = 1, shuffle=True,
                  shuffle_seed: int = 0, offset: int = 0,
@@ -441,9 +431,6 @@ def normalize_question(question: str) -> str:
 
 
 class Tensorizer(object):
-    """
-    Component for all text to model input data conversions and related utility methods
-    """
 
     # Note: title, if present, is supposed to be put before text (i.e. optional title + document body)
     def text_to_tensor(self, text: str, title: str = None, add_special_tokens: bool = True):

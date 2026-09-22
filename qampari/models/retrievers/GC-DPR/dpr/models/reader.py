@@ -5,9 +5,6 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""
-The reader model code + its utilities (loss computation and input batch tensor generator)
-"""
 
 import collections
 import logging
@@ -102,17 +99,6 @@ def create_reader_input(pad_token_id: int,
                         is_train: bool,
                         shuffle: bool,
                         ) -> ReaderBatch:
-    """
-    Creates a reader batch instance out of a list of ReaderSample-s
-    :param pad_token_id: id of the padding token
-    :param samples: list of samples to create the batch for
-    :param passages_per_question: amount of passages for every question in a batch
-    :param max_length: max model input sequence length
-    :param max_n_answers: max num of answers per single question
-    :param is_train: if the samples are for a train set
-    :param shuffle: should passages selection be randomized
-    :return: ReaderBatch instance
-    """
     input_ids = []
     start_positions = []
     end_positions = []

@@ -6,9 +6,6 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""
-BiEncoder component + loss function for 'all-in-batch' training
-"""
 
 import collections
 import logging
@@ -46,12 +43,6 @@ class BiEncoderBatch:
 
 
 def dot_product_scores(q_vectors: T, ctx_vectors: T) -> T:
-    """
-    calculates q->ctx scores for every row in ctx_vector
-    :param q_vector:
-    :param ctx_vector:
-    :return:
-    """
     # q_vector: n1 x D, ctx_vectors: n2 x D, result n1 x n2
     r = torch.matmul(q_vectors, torch.transpose(ctx_vectors, 0, 1))
     return r
@@ -63,8 +54,6 @@ def cosine_scores(q_vector: T, ctx_vectors: T):
 
 
 class BiEncoder(nn.Module):
-    """ Bi-Encoder model component. Encapsulates query/question and context/passage encoders.
-    """
 
     def __init__(self, question_model: nn.Module, ctx_model: nn.Module, fix_q_encoder: bool = False,
                  fix_ctx_encoder: bool = False):
@@ -144,17 +133,6 @@ class BiEncoder(nn.Module):
                                shuffle_positives: bool = False,
                                unique_idx: bool = False,
                                ) -> BiEncoderBatch:
-        """
-        Creates a batch of the biencoder training tuple.
-        :param samples: list of data items (from json) to create the batch for
-        :param tensorizer: components to create model input tensors from a text sequence
-        :param insert_title: enables title insertion at the beginning of the context sequences
-        :param num_hard_negatives: amount of hard negatives per question (taken from samples' pools)
-        :param num_other_negatives: amount of other negatives per question (taken from samples' pools)
-        :param shuffle: shuffles negative passages pools
-        :param shuffle_positives: shuffles positive passages pools
-        :return: BiEncoderBatch tuple
-        """
         question_tensors = []
         ctx_tensors = []
         positive_ctx_indices = []
@@ -223,12 +201,6 @@ class BiEncoderNllLoss(object):
 
     def calc(self, q_vectors: T, ctx_vectors: T, positive_idx_per_question: list,
              hard_negative_idx_per_question: list = None) -> Tuple[T, int]:
-        """
-        Computes nll loss for the given lists of question and ctx vectors.
-        Note that although hard_negative_idx_per_question in not currently in use, one can use it for the
-        loss modifications. For example - weighted NLL with different factors for hard vs regular negatives.
-        :return: a tuple of loss value and amount of correct predictions per batch
-        """
         scores = self.get_scores(q_vectors, ctx_vectors)
 
         if len(q_vectors.size()) > 1:

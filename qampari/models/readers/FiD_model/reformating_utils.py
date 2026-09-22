@@ -4,12 +4,6 @@ random.seed(42)
 
 def randomly_merge(positive_ctxs, negative_ctxs):
 
-    """
-    Randomly merges the positive and the negative contexts during train time.
-    :param positive_ctxs: list of positive contexts
-    :param negative_ctxs: list of negative contexts
-    :return: the randomly mixed contexts
-    """
 
     final_ctxs = list()
     while positive_ctxs and negative_ctxs:

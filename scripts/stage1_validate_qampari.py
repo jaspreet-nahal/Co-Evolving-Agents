@@ -1,23 +1,12 @@
 import sys
 import os
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-from harness.core import (
-    InMemoryCorpusIndex,
-    DeepResearchHarness,
-    HarnessConfig,
-    create_harness,
-    SufficiencyConfig,
-    SufficiencyCriterion
-)
+from harness.core import InMemoryCorpusIndex, DeepResearchHarness, HarnessConfig, create_harness, SufficiencyConfig, SufficiencyCriterion
 from harness.benchmarks import create_qampari_benchmark
 
 
 def main():
-    print("=" * 60)
     print("STAGE 1 VALIDATION: QAMPARI Benchmark")
-    print("=" * 60)
 
     print("\n1. Creating QAMPARI benchmark...")
     benchmark = create_qampari_benchmark()
@@ -46,9 +35,7 @@ def main():
     print("\n5. Running evaluation on 5 questions...")
     results = benchmark.run_evaluation(harness, max_examples=5)
 
-    print("\n" + "=" * 60)
     print("VALIDATION RESULTS")
-    print("=" * 60)
 
     print(f"\nTotal Examples: {results['total_examples']}")
     print(f"Exact Match Accuracy: {results['exact_match_accuracy']:.3f}")
@@ -60,9 +47,7 @@ def main():
     print(f"Avg Output Recall: {results['avg_output_recall']:.3f}")
     print(f"Avg Sufficiency Accuracy: {results['avg_sufficiency_accuracy']:.3f}")
 
-    print("\n" + "=" * 60)
     print("FIELD VALIDATION")
-    print("=" * 60)
 
     all_fields_present = True
     for i, ex in enumerate(results['per_example']):
@@ -76,9 +61,9 @@ def main():
 
         for field in required_fields:
             if field in ex and ex[field] is not None:
-                print(f"  ✓ {field}: present")
+                print(f"  {field}: present")
             else:
-                print(f"  ✗ {field}: MISSING")
+                print(f"  {field}: MISSING")
                 all_fields_present = False
 
         exhaustiveness = ex.get('exhaustiveness', {})
@@ -87,14 +72,12 @@ def main():
                                  'correct_answers', 'missing_answers', 'extra_answers']
         for field in exhaustiveness_fields:
             if field in exhaustiveness:
-                print(f"  ✓ exhaustiveness.{field}: {exhaustiveness[field]}")
+                print(f"  exhaustiveness.{field}: {exhaustiveness[field]}")
             else:
-                print(f"  ✗ exhaustiveness.{field}: MISSING")
+                print(f"  exhaustiveness.{field}: MISSING")
                 all_fields_present = False
 
-    print("\n" + "=" * 60)
     print("LOG FILE VALIDATION")
-    print("=" * 60)
 
     import glob
     log_dirs = glob.glob("harness/logs/q_*/")
@@ -111,17 +94,15 @@ def main():
             print(f"    MISSING STAGES: {missing}")
             all_fields_present = False
         else:
-            print(f"    ✓ All 6 stages logged")
+            print("    All 6 stages logged")
 
-    print("\n" + "=" * 60)
     if all_fields_present:
-        print("✓ STAGE 1 VALIDATION PASSED")
+        print("STAGE 1 VALIDATION PASSED")
         print("All logged fields correctly populated.")
         print("Ready to proceed to Stage 2 (BrowseComp-Plus).")
     else:
-        print("✗ STAGE 1 VALIDATION FAILED")
+        print("STAGE 1 VALIDATION FAILED")
         print("Some fields are missing. Fix before proceeding.")
-    print("=" * 60)
 
     return all_fields_present
 

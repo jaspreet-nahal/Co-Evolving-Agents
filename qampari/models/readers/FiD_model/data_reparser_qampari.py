@@ -4,13 +4,6 @@ from reformating_utils import randomly_merge
 
 def fix_train_ctxs(positive_ctxs, total_ctxs):
 
-    """
-    Fixes the train contexts. Merges the positive and the negative contexts while making sure the order of the answers
-    is recorded for later loss computation
-    :param positive_ctxs: the positive contexts for the model
-    :param total_ctxs: all the contexts retrieved
-    :return: the merged positive and negative contexts and the order in which the answers appear
-    """
 
     new_positive_ctxs, new_negative_ctxs, added_id, answers_orders = list(), list(), list(), list()
     for ctx in positive_ctxs:
@@ -30,11 +23,6 @@ def fix_train_ctxs(positive_ctxs, total_ctxs):
 
 def main(input_path: str, output_path: str):
 
-    """
-    Reparses the qampari data to fit the FiD supported format.
-    :param input_path: path to where the data is kept
-    :param output_path: path to where to keep the reformatted data
-    """
 
     with open(input_path, 'r') as f:
         data = json.load(f)

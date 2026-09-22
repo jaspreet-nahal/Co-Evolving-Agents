@@ -3,9 +3,7 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-
 from .models import Constraint
-
 
 class ConstraintType(str, Enum):
     TEMPORAL = "temporal"

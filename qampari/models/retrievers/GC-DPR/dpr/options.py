@@ -6,9 +6,6 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""
-Command line arguments utils
-"""
 
 import argparse
 import logging
@@ -28,9 +25,6 @@ def add_tokenizer_params(parser: argparse.ArgumentParser):
 
 
 def add_encoder_params(parser: argparse.ArgumentParser):
-    """
-        Common parameters to initialize an encoder-based model
-    """
     parser.add_argument("--pretrained_model_cfg", default=None, type=str, help="config name for model initialization")
     parser.add_argument("--encoder_model_type", default=None, type=str,
                         help="model type. One of [hf_bert, pytext_bert, fairseq_roberta]")
@@ -43,9 +37,6 @@ def add_encoder_params(parser: argparse.ArgumentParser):
 
 
 def add_training_params(parser: argparse.ArgumentParser):
-    """
-        Common parameters for training
-    """
     add_cuda_params(parser)
     parser.add_argument("--train_file", default=None, type=str, help="File pattern for the train set")
     parser.add_argument("--dev_file", default=None, type=str, help="")
@@ -103,11 +94,6 @@ def get_encoder_checkpoint_params_names():
 
 
 def get_encoder_params_state(args):
-    """
-     Selects the param values to be saved in a checkpoint, so that a trained model faile can be used for downstream
-     tasks without the need to specify these parameter again
-    :return: Dict of params to memorize in a checkpoint
-    """
     params_to_save = get_encoder_checkpoint_params_names()
 
     r = {}
@@ -140,9 +126,6 @@ def set_seed(args):
 
 
 def setup_args_gpu(args):
-    """
-     Setup arguments CUDA, GPU & distributed training
-    """
 
     if args.local_rank == -1 or args.no_cuda:  # single-node multi-gpu (or cpu) mode
         device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")

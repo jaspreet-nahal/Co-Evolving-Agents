@@ -5,9 +5,6 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""
-Utilities for distributed model training
-"""
 
 import pickle
 
@@ -34,13 +31,6 @@ def all_reduce(tensor, group=None):
 
 
 def all_gather_list(data, group=None, max_size=16384):
-    """Gathers arbitrary data from all nodes into a list.
-    Similar to :func:`~torch.distributed.all_gather` but for arbitrary Python
-    data. Note that *data* must be picklable.
-    Args:
-        data (Any): data from the local worker to be gathered on other workers
-        group (optional): group of the collective
-    """
     SIZE_STORAGE_BYTES = 4  # int32 to encode the payload size
 
     enc = pickle.dumps(data)

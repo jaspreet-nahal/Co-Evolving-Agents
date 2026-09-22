@@ -7,9 +7,6 @@ import argparse
 
 def retrieve_relevant_infos(relevant_infos: str, answers: list, output_dir: str):
 
-    """
-    Given output dir and a list of answers, retrieves all the informations regarding these answers.
-    """
 
     curr_relevant_infos = dict()
     subdirs = os.listdir(relevant_infos)
@@ -45,9 +42,6 @@ def retrieve_relevant_infos(relevant_infos: str, answers: list, output_dir: str)
 
 def retrieve_all_answers(data: dict, keys: list) -> list:
 
-    """
-    Retrieves all the answers in a given chunk.
-    """
 
     all_answers = list()
     for key in keys:
@@ -56,10 +50,6 @@ def retrieve_all_answers(data: dict, keys: list) -> list:
 
 def main(input_questions: str, output_dir: str, relevant_infos_path: str, num_questions: int = 100000):
 
-    """
-    Given a path to relevant infos dir and a file with all the potential questions, outputs chunks of 100000 questions
-    each and all the relevant infos for the answers in said chunk.
-    """
 
     if not os.path.exists(output_dir):
         os.mkdir(output_dir)

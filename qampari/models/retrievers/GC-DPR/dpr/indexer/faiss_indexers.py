@@ -5,9 +5,6 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""
- FAISS-based index components for dense retriver
-"""
 
 import os
 import time
@@ -110,9 +107,6 @@ class DenseFlatIndexer(DenseIndexer):
 
 
 class DenseHNSWFlatIndexer(DenseIndexer):
-    """
-     Efficient index for retrieval. Note: default settings are for hugh accuracy but also high RAM usage
-    """
 
     def __init__(self, vector_sz: int, buffer_size: int = 50000, store_n: int = 512
                  , ef_search: int = 128, ef_construction: int = 200):
@@ -132,11 +126,6 @@ class DenseHNSWFlatIndexer(DenseIndexer):
         super(DenseHNSWFlatIndexer, self).index_data(vector_files)
 
     def _set_phi(self, vector_files: List[str]):
-        """
-        Calculates the max norm from the whole data and assign it to self.phi: necessary to transform IP -> L2 space
-        :param vector_files: file names to get passages vectors from
-        :return:
-        """
         phi = 0
         for i, item in enumerate(iterate_encoded_files(vector_files)):
             id, doc_vector = item

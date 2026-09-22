@@ -11,9 +11,6 @@ from DataCreation.DataAlignment.utils.properties_constants import SUBCLASSES, PR
 
 def get_answer_superclass(wikidata_id: str, relevant_infos : Dict, superclasses_cache: Dict):
 
-    """
-    Given an answer to a question, returns a list with all the superclasses of this answers.
-    """
 
     curr_superclasses = set()
 
@@ -31,9 +28,6 @@ def get_answer_superclass(wikidata_id: str, relevant_infos : Dict, superclasses_
 
 def add_helping_info(all_quests, quest_form: str, prop: str, subject: str, subtype: str):
 
-    """
-    Adds the informations to the dictionary.
-    """
     if prop not in all_quests[quest_form][0]:
         all_quests[quest_form][0].append(prop)
         all_quests[quest_form][0].append(subject)
@@ -43,9 +37,6 @@ def add_helping_info(all_quests, quest_form: str, prop: str, subject: str, subty
 
 def reformulate_single_question(all_questions: dict, property: str, subject: str, answer: str, answers_inf):
 
-    """
-    Reforulates a question with a single option (questions that apply to one type of subject).
-    """
 
     quest_form = PROP_SENTENCES[property][1].format(subject)
     all_questions[PROP_SENTENCES[property][1].format(subject)][1][answer] = answers_inf
@@ -56,9 +47,6 @@ def reformulate_single_question(all_questions: dict, property: str, subject: str
 
 def reformulate_subtyped_question(curr_superclasses: list, property: str, subject: str):
 
-    """
-    Reformulates a question with a single option (questions that apply to one type of subject).
-    """
 
     all_questions = list()
     if len(curr_superclasses) > 0:
@@ -73,9 +61,6 @@ def reformulate_subtyped_question(curr_superclasses: list, property: str, subjec
 
 def treat_question(question: Dict, relevant_infos: Dict, superclasses_cache: Dict):
 
-    """
-    Given a question and its answers, divides it in all correctly formulated questions.
-    """
 
     questions = list()
     property = question['qid'].split('__')[0]
@@ -114,10 +99,6 @@ def treat_question(question: Dict, relevant_infos: Dict, superclasses_cache: Dic
 
 def treat_file(input_path: str, relevant_infos: Dict, superclasses_cache: Dict):
 
-    """
-    Given a path to a file, the relevant infos and the superclasses of each instance, iterates over all the questions in
-    the file and reformulates them and save them in a file.
-    """
 
     data = list()
     with open(input_path, 'r') as f:

@@ -5,10 +5,6 @@ import argparse
 
 def filter(base_dir_questions, base_infos_wiki, output_txt):
 
-    """
-    Given the path to a chunk, outputs a file with a list of all the instances of the answers (i.e 'Albert Einstein' is
-    an instance of human).
-    """
 
     questions_caches = os.listdir(base_dir_questions)
     with open(base_infos_wiki, 'r') as f:

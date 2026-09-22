@@ -6,10 +6,6 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""
- Command line tool that produces embeddings for a large documents base based on the pretrained ctx & question encoders
- Supposed to be used in a 'sharded' way to speed up the process.
-"""
 import os
 import pathlib
 import argparse

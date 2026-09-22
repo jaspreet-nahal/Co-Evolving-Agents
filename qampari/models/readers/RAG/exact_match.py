@@ -7,7 +7,6 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 def normalize_answer(s):
-    """Lower text and remove punctuation, articles and extra whitespace."""
 
     def remove_articles(text):
         return re.sub(r"\b(a|an|the)\b", " ", text)
@@ -30,10 +29,6 @@ def exact_match_score(prediction, ground_truth):
 
 def create_inverse_mappings(mapping):
 
-    """
-    Based on a mapping, inverses it and returns a dic of aliases as key and their basic name as value.
-    :param mapping: dictionary of answer names as key and a list of their aliases as values
-    """
 
     inverse_mapping = dict()
     for key in mapping:
@@ -44,13 +39,6 @@ def create_inverse_mappings(mapping):
 
 def compute_nq_metric(final_preds, mappings):
 
-    """
-    Based on the final predictions and the mapping from an answer value to an alias, computes NQ-EM score for the overall
-    predictions
-    :param final_preds: List of the actual predictions made by the model (i.e prob of Answer: higher than prob of irrelevant)
-    :param mappings: Mapping from an answer name to a list of its aliases.
-    :return: EM score
-    """
 
     has_em = 0
     for qid in final_preds:
@@ -63,14 +51,6 @@ def compute_nq_metric(final_preds, mappings):
 
 def compute_qampari_metrics(final_preds, inverse_mappings, mappings):
 
-    """
-    Based on the final predictions made by the model computes the ensemble of metrics for QAMPARI for the overall
-    predictions
-    :param final_preds: List of the actual predictions made by the model (i.e prob of Answer: higher than prob of irrelevant)
-    :param inverse_mappings: Mapping from an alias to its original answer.
-    :param mappings: Mapping from an answer name to a list of its aliases.
-    :return: Ensemble of QAMPARI metrics.
-    """
 
     prec, rec, f1 = list(), list(), list()
     for qid in mappings:

@@ -56,6 +56,14 @@ class InMemoryCorpusIndex(CorpusIndex):
         self._bm25_index = None
 
     def add_document(self, doc: CorpusDocument):
+        if isinstance(doc, dict):
+            doc_id = doc.get("id", doc.get("doc_id", str(uuid.uuid4())))
+            content = doc.get("text", doc.get("content", ""))
+            metadata = doc.get("metadata", {})
+            doc = CorpusDocument(doc_id=doc_id, content=content, metadata=metadata)
+            self._chunk_document(doc)
+        elif not doc.chunks:
+            self._chunk_document(doc)
         self.documents[doc.doc_id] = doc
         for chunk in doc.chunks:
             self.chunks[chunk.chunk_id] = chunk
@@ -75,6 +83,20 @@ class InMemoryCorpusIndex(CorpusIndex):
     def _chunk_document(self, doc: CorpusDocument):
         content = doc.content
         chunks = []
+        if len(content) <= self.chunk_size and re.search(r"[.!?]\s+", content):
+            sentences = [item.strip() for item in re.split(r"(?<=[.!?])\s+", content) if item.strip()]
+            for chunk_idx, chunk_content in enumerate(sentences):
+                chunk = CorpusChunk(
+                    chunk_id=f"{doc.doc_id}_chunk_{chunk_idx}",
+                    doc_id=doc.doc_id,
+                    content=chunk_content,
+                    start_char=content.find(chunk_content),
+                    end_char=content.find(chunk_content) + len(chunk_content),
+                    metadata=doc.metadata.copy()
+                )
+                chunks.append(chunk)
+                doc.chunks.append(chunk)
+            return
         start = 0
         chunk_idx = 0
 
@@ -226,6 +248,7 @@ class SearchReadTools:
             "results": [
                 {
                     "chunk_id": c.chunk_id,
+                    "doc_id": c.doc_id,
                     "content": c.content,
                     "start_char": c.start_char,
                     "end_char": c.end_char,

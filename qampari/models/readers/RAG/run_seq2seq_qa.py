@@ -13,9 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""
-Fine-tuning the library's seq2seq models for question answering using the 🤗 Seq2SeqTrainer.
-"""
 # You can also adapt this script on your own question answering task. Pointers for this are left as comments.
 
 import logging
@@ -31,17 +28,7 @@ from datasets import load_dataset, load_metric
 from RAG.exact_match import compute_em_nq
 import transformers
 from trainer_seq2seq_qa import QuestionAnsweringSeq2SeqTrainer, EvalLoopOutputProb
-from transformers import (
-    AutoConfig,
-    AutoModelForSeq2SeqLM,
-    T5ForConditionalGeneration,
-    T5Tokenizer,
-    AutoTokenizer,
-    DataCollatorForSeq2Seq,
-    HfArgumentParser,
-    Seq2SeqTrainingArguments,
-    set_seed,
-)
+from transformers import AutoConfig, AutoModelForSeq2SeqLM, T5ForConditionalGeneration, T5Tokenizer, AutoTokenizer, DataCollatorForSeq2Seq, HfArgumentParser, Seq2SeqTrainingArguments, set_seed
 from transformers.trainer_utils import EvalLoopOutput, EvalPrediction, get_last_checkpoint
 from transformers.utils import check_min_version, send_example_telemetry
 from transformers.utils.versions import require_version
@@ -56,9 +43,6 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class ModelArguments:
-    """
-    Arguments pertaining to which model/config/tokenizer we are going to fine-tune from.
-    """
 
     model_name_or_path: str = field(
         metadata={"help": "Path to pretrained model or model identifier from huggingface.co/models"}
@@ -94,9 +78,6 @@ class ModelArguments:
 
 @dataclass
 class DataTrainingArguments:
-    """
-    Arguments pertaining to what data we are going to input our model for training and eval.
-    """
 
     dataset_name: Optional[str] = field(
         default=None, metadata={"help": "The name of the dataset to use (via the datasets library)."}

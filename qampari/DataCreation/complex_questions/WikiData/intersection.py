@@ -10,9 +10,6 @@ from tqdm import tqdm
 
 def create_dictionary(questions: List):
 
-    """
-    Creates a dictionary of wikiids and the questions they answer to.
-    """
 
     meta_data, answers_data, answer_to_quest = dict(), defaultdict(lambda: dict()), defaultdict(lambda: list())
     wiki_ids = dict()
@@ -90,10 +87,6 @@ def find_potential_questions(answers_to_quest: Dict):
 
 def backward_pass(meta_data: Dict, answers_data: Dict, wiki_ids: Dict, answer_to_quest: Dict, output_path: str = ""):
 
-    """
-    Takes a dictionary of wikiids and the questions they answer to, can output it to some file if they have more than
-    5 answers in common.
-    """
 
     potential_couples = find_potential_questions(answer_to_quest)
     intersec_questions = create_intersec_questions_data(meta_data, answers_data, potential_couples, wiki_ids)
@@ -108,9 +101,6 @@ def backward_pass(meta_data: Dict, answers_data: Dict, wiki_ids: Dict, answer_to
 
 def load_questions(root_path: str, concatenate_path: str, thresh: float = 0.7):
 
-    """
-    With some root path load all the questions.
-    """
 
     questions = list()
     chunk_dir = os.listdir(root_path)

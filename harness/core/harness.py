@@ -11,7 +11,11 @@ from .working_memory import WorkingMemory, EvidenceChunk
 from .sufficiency_check import SufficiencyChecker, SufficiencyConfig, SufficiencyCriterion
 from .synthesis import SynthesisEngine, SynthesisResult
 from .verifier import Verifier, VerificationConfig
-from .metrics import calculate_recall_metrics, RecallMetrics
+from .metrics import calculate_recall_metrics, RecallMetrics, MetricsCalculator
+from .actions import ActionType, HarnessAction
+from .episode import EpisodeState, VerificationRecord
+from .model_adapter import RuleBasedPolicy
+from .observations import ObservationRenderer
 
 
 @dataclass
@@ -24,7 +28,12 @@ class HarnessConfig:
     use_llm_synthesis: bool = False
     llm_client: Any = None
     model_name: str = "rule_based"
-
+    execution_mode: str = "legacy"
+    max_turns: int = 40
+    max_curated_docs: int = 30
+    context_budget_chars: int = 30000
+    auto_seed: bool = True
+    action_policy: Any = None
 
 class DeepResearchHarness:
 
@@ -52,6 +61,8 @@ class DeepResearchHarness:
     def run_trajectory(self, query: str, query_id: str = None,
                        gold_chunk_ids: List[str] = None,
                        benchmark: str = "unknown") -> Trajectory:
+        if self.config.execution_mode == "harness1":
+            return self.run_harness1_episode(query, query_id, gold_chunk_ids, benchmark)
         query_id = query_id or str(uuid.uuid4())[:8]
         gold_chunk_ids = gold_chunk_ids or []
 
@@ -60,7 +71,8 @@ class DeepResearchHarness:
             query=query,
             model_name=self.config.model_name,
             benchmark=benchmark,
-            gold_relevant_chunk_ids=gold_chunk_ids
+            gold_relevant_chunk_ids=gold_chunk_ids,
+            execution_mode=self.config.execution_mode,
         )
         self.logger.start_trajectory(query_id)
 
@@ -77,15 +89,189 @@ class DeepResearchHarness:
             self._run_synthesis_stage()
             self._run_verifier_stage()
             self._compute_final_metrics()
-            self.logger.save_trajectory_summary(self.current_trajectory)
 
         except Exception as e:
             self.console.error(f"Trajectory {query_id} failed: {e}")
             self.current_trajectory.final_answer = f"ERROR: {str(e)}"
-            self.logger.save_trajectory_summary(self.current_trajectory)
 
         self.current_trajectory.completed_at = datetime.now()
+        self._finalize_trajectory(self.current_trajectory)
+        self.logger.save_trajectory_summary(self.current_trajectory)
         return self.current_trajectory
+
+    def run_harness1_episode(self, query: str, query_id: str = None,
+                             gold_chunk_ids: List[str] = None,
+                             benchmark: str = "unknown") -> Trajectory:
+        query_id = query_id or str(uuid.uuid4())[:8]
+        trajectory = Trajectory(
+            query_id=query_id,
+            query=query,
+            model_name=self.config.model_name,
+            benchmark=benchmark,
+            gold_relevant_chunk_ids=gold_chunk_ids or [],
+            execution_mode="harness1",
+        )
+        self.current_trajectory = trajectory
+        self.logger.start_trajectory(query_id)
+        self.search_tools.reset()
+        self.working_memory.reset()
+        self.plan = self.planner.plan(query)
+        trajectory.constraints = [
+            Constraint(type=item.type, description=item.description, raw_text=item.raw_text, parsed_value=item.parsed_value)
+            for item in self.plan.constraints
+        ]
+        trajectory.add_stage_log(StageLog(
+            stage=StageName.PLANNER,
+            input_data={"query": query, "mode": "harness1"},
+            output_data={"constraints": [item.description for item in trajectory.constraints], "sub_queries": [item.text for item in self.plan.sub_queries]},
+        ))
+        state = EpisodeState(
+            query=query,
+            max_turns=self.config.max_turns,
+            max_curated_docs=self.config.max_curated_docs,
+            context_budget_chars=self.config.context_budget_chars,
+        )
+        policy = self.config.action_policy or RuleBasedPolicy()
+        renderer = ObservationRenderer(self.config.context_budget_chars)
+        latest_result = {}
+        try:
+            while not state.terminated and state.turn < state.max_turns:
+                observation = renderer.render(state, latest_result)
+                action = policy.choose_action(observation, state)
+                if not isinstance(action, HarnessAction):
+                    action = HarnessAction.from_dict(action)
+                latest_result = self._execute_harness1_action(action, state)
+                state.record_action(action.action.value, action.arguments, latest_result)
+                state.turn += 1
+            if not state.terminated:
+                state.terminated = True
+                state.termination_reason = "max_turns"
+            trajectory.all_retrieved_chunk_ids = list(state.seen_chunk_ids)
+            trajectory.curated_document_ids = state.ordered_curated_ids()
+            trajectory.termination_reason = state.termination_reason
+            trajectory.action_history = [
+                {"turn": event.turn, "action": event.action, "arguments": event.arguments, "result": event.result_summary}
+                for event in state.action_history
+            ]
+            trajectory.add_stage_log(StageLog(
+                stage=StageName.SEARCH_READ,
+                input_data={"mode": "harness1", "query": query},
+                output_data={"actions": trajectory.action_history, "episode_state": state.snapshot()},
+            ))
+            self._apply_curated_context(state)
+            self._run_working_memory_stage()
+            self._run_sufficiency_check_stage()
+            self._run_synthesis_stage()
+            self._run_verifier_stage()
+            self._compute_final_metrics()
+        except Exception as error:
+            self.console.error(f"Harness-1 episode {query_id} failed: {error}")
+            trajectory.final_answer = f"ERROR: {error}"
+        trajectory.completed_at = datetime.now()
+        self._finalize_trajectory(trajectory)
+        self.logger.save_trajectory_summary(trajectory)
+        return trajectory
+
+    @staticmethod
+    def _finalize_trajectory(trajectory: Trajectory) -> None:
+        trajectory.total_duration_ms = (trajectory.completed_at - trajectory.started_at).total_seconds() * 1000
+        MetricsCalculator.enrich_trajectory(trajectory)
+
+    def _execute_harness1_action(self, action: HarnessAction, state: EpisodeState) -> Dict[str, Any]:
+        args = action.arguments
+        if action.action == ActionType.FAN_OUT_SEARCH:
+            queries = args.get("queries", [])
+            if not queries:
+                queries = [state.query]
+            results = [self._execute_harness1_search(query, state, "fan_out_search") for query in queries[:5]]
+            return {"tool": action.action.value, "queries": queries[:5], "results": results}
+        if action.action == ActionType.SEARCH_CORPUS:
+            return self._execute_harness1_search(str(args.get("query", state.query)), state, "search_corpus")
+        if action.action == ActionType.GREP_CORPUS:
+            pattern = str(args.get("pattern", ""))
+            result = self.search_tools.grep_corpus(pattern, int(args.get("max_results", 5)))
+            self._ingest_search_result(result, state, "grep_corpus")
+            return {"tool": action.action.value, "new_documents": self._new_document_ids(result)}
+        if action.action == ActionType.READ_DOCUMENT:
+            doc_id = str(args.get("doc_id", ""))
+            result = self.search_tools.read_document(doc_id)
+            document = self.corpus_index.get_document(doc_id)
+            if document:
+                state.add_document(document)
+                for chunk in document.chunks:
+                    self.working_memory.add_chunks([chunk], "read_document", doc_id, [chunk.score])
+            return {"tool": action.action.value, "doc_id": doc_id, "found": document is not None, "chunks": len(result.get("results", []))}
+        if action.action == ActionType.REVIEW_DOCS:
+            ids = args.get("doc_ids", args.get("ids", []))
+            return {"tool": action.action.value, "documents": [state.document_store[item_id].doc_id for item_id in ids if item_id in state.document_store]}
+        if action.action == ActionType.CURATE:
+            add_ids = args.get("add_ids", [])
+            remove_ids = args.get("remove_ids", [])
+            importance = args.get("importance", {})
+            return {"tool": action.action.value, **state.curate(add_ids, remove_ids, importance, args.get("rationale", ""))}
+        if action.action == ActionType.VERIFY:
+            return self._execute_harness1_verify(str(args.get("claim", "")), args.get("doc_ids", []), state)
+        if action.action == ActionType.END_SEARCH:
+            state.terminated = True
+            state.termination_reason = str(args.get("reason", "policy_end"))
+            return {"tool": action.action.value, "reason": state.termination_reason, "curated_ids": state.ordered_curated_ids()}
+        raise ValueError(f"Unsupported action: {action.action.value}")
+
+    def _execute_harness1_search(self, query: str, state: EpisodeState, source_tool: str) -> Dict[str, Any]:
+        result = self.search_tools.search_corpus(query, self.config.max_chunks_per_search)
+        new_ids = self._ingest_search_result(result, state, source_tool)
+        state.search_history.append({"turn": state.turn, "tool": source_tool, "query": query, "new_documents": new_ids})
+        if self.config.auto_seed and not state.auto_seeded and new_ids:
+            state.curate(new_ids[:8], [], {item_id: "fair" for item_id in new_ids[:8]}, "auto_seed")
+            state.auto_seeded = True
+        return {"tool": source_tool, "query": query, "new_documents": new_ids, "returned": len(result.get("results", []))}
+
+    def _ingest_search_result(self, result: Dict[str, Any], state: EpisodeState, source_tool: str) -> List[str]:
+        new_documents = []
+        for chunk_id in result.get("new_chunk_ids", []):
+            chunk = self.corpus_index.get_chunk(chunk_id)
+            if chunk is not None:
+                is_new = state.ingest_chunk(chunk, source_tool)
+                self.working_memory.add_chunks([chunk], source_tool, result.get("query", result.get("pattern", "")), [chunk.score])
+                if is_new:
+                    new_documents.append(chunk.doc_id)
+        return new_documents
+
+    @staticmethod
+    def _new_document_ids(result: Dict[str, Any]) -> List[str]:
+        return list(dict.fromkeys(item.get("doc_id") for item in result.get("results", []) if item.get("doc_id")))
+
+    def _execute_harness1_verify(self, claim: str, doc_ids: List[str], state: EpisodeState) -> Dict[str, Any]:
+        records = []
+        for item_id in doc_ids:
+            key = state.cache_key(claim, item_id)
+            if key in state.verification_cache:
+                record = state.verification_cache[key]
+                records.append({"doc_id": item_id, "supported": record.supported, "cached": True})
+                continue
+            candidate = state.candidates.get(item_id)
+            text = ""
+            if item_id in state.document_store:
+                text = state.document_store[item_id].content
+            elif candidate:
+                text = candidate.snippet
+            claim_terms = set(claim.lower().split())
+            text_terms = set(text.lower().split())
+            overlap = len(claim_terms & text_terms) / len(claim_terms) if claim_terms else 0.0
+            supported = overlap >= self.config.verifier_config.min_claim_overlap
+            state.verification_cache[key] = VerificationRecord(claim, item_id, supported, f"token_overlap={overlap:.3f}", state.turn)
+            records.append({"doc_id": item_id, "supported": supported, "cached": False, "overlap": overlap})
+        return {"tool": ActionType.VERIFY.value, "claim": claim, "records": records}
+
+    def _apply_curated_context(self, state: EpisodeState) -> None:
+        curated_ids = set(state.curated)
+        uncurated_chunk_ids = [
+            evidence.chunk.chunk_id
+            for evidence in self.working_memory.get_active_chunks()
+            if evidence.chunk.doc_id not in curated_ids
+        ]
+        self.working_memory.prune_chunks(uncurated_chunk_ids, "not in final Harness-1 curated set")
+
 
     def _run_planner_stage(self):
         self.console.stage_start(StageName.PLANNER, self.current_trajectory.query_id)
@@ -285,6 +471,7 @@ class DeepResearchHarness:
 
         self.current_trajectory.final_answer = synthesis_result.answer
         self.current_trajectory.final_cited_chunk_ids = synthesis_result.cited_chunk_ids
+        self.current_trajectory.claims = output_data["claims"]
 
         duration = (time.time() - start_time) * 1000
         self.logger.log_stage(StageName.SYNTHESIS, input_data, output_data, duration)
@@ -300,10 +487,14 @@ class DeepResearchHarness:
         start_time = time.time()
 
         from .synthesis import Claim
+        synthesis_log = next(
+            (log for log in reversed(self.current_trajectory.stage_logs) if log.stage == StageName.SYNTHESIS),
+            None,
+        )
         claims = [
             Claim(text=c["text"], citation_chunk_ids=c["citations"], confidence=c["confidence"], claim_type=c["type"])
-            for c in self.current_trajectory.stage_logs[-2].output_data.get("claims", [])
-        ] if len(self.current_trajectory.stage_logs) >= 2 else []
+            for c in (synthesis_log.output_data.get("claims", []) if synthesis_log else [])
+        ]
 
         from .synthesis import SynthesisResult
         synthesis_result = SynthesisResult(
@@ -324,6 +515,7 @@ class DeepResearchHarness:
             "invalid_citations": verification_result.invalid_citations,
             "claims_verified": verification_result.claims_verified
         }
+        self.current_trajectory.verification = output_data
 
         duration = (time.time() - start_time) * 1000
         self.logger.log_stage(StageName.VERIFIER, input_data, output_data, duration)

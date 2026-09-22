@@ -85,9 +85,6 @@ def move_to_device(sample, device):
 
 
 def get_schedule_linear(optimizer, warmup_steps, training_steps, last_epoch=-1):
-    """ Create a schedule with a learning rate that decreases linearly after
-    linearly increasing during a warmup period.
-    """
 
     def lr_lambda(current_step):
         if current_step < warmup_steps:

@@ -7,10 +7,6 @@
 
 import importlib
 
-"""
- 'Router'-like set of methods for component initialization with lazy imports 
-"""
-
 
 def init_hf_bert_biencoder(args, **kwargs):
     if importlib.util.find_spec("transformers") is None:

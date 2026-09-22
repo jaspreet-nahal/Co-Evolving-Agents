@@ -1,32 +1,13 @@
 import argparse
 import sys
 import os
-
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
-from harness.core import (
-    InMemoryCorpusIndex,
-    DeepResearchHarness,
-    HarnessConfig,
-    create_harness,
-    SufficiencyConfig,
-    SufficiencyCriterion
-)
-from harness.benchmarks import (
-    create_qampari_benchmark,
-    create_browsecomp_plus_benchmark,
-    create_financebench_benchmark,
-    create_trec_biogen_benchmark,
-    create_freshstack_benchmark,
-    TREC_VERIFICATION_CHECKLIST,
-    FRESHSTACK_VERIFICATION_CHECKLIST
-)
+from harness.core import InMemoryCorpusIndex, DeepResearchHarness, HarnessConfig, create_harness, SufficiencyConfig, SufficiencyCriterion
+from harness.benchmarks import create_qampari_benchmark, create_browsecomp_plus_benchmark, create_financebench_benchmark, create_trec_biogen_benchmark, create_freshstack_benchmark, TREC_VERIFICATION_CHECKLIST, FRESHSTACK_VERIFICATION_CHECKLIST
 
 
 def run_stage1_qampari(model_name: str, max_examples: int = 20):
-    print("=" * 60)
     print("STAGE 1: QAMPARI Benchmark")
-    print("=" * 60)
 
     benchmark = create_qampari_benchmark()
     examples = benchmark.load_data(max_examples=max_examples)
@@ -62,9 +43,7 @@ def run_stage1_qampari(model_name: str, max_examples: int = 20):
 
 
 def run_stage2_browsecomp(model_name: str, max_examples: int = 20):
-    print("=" * 60)
     print("STAGE 2: BrowseComp-Plus Benchmark")
-    print("=" * 60)
 
     benchmark = create_browsecomp_plus_benchmark()
     examples = benchmark.load_data(max_examples=max_examples)
@@ -92,9 +71,7 @@ def run_stage2_browsecomp(model_name: str, max_examples: int = 20):
 
 
 def run_stage3_financebench(model_name: str, max_examples: int = 20):
-    print("=" * 60)
     print("STAGE 3: FinanceBench Benchmark (Public 150 Questions)")
-    print("=" * 60)
 
     benchmark = create_financebench_benchmark()
     examples = benchmark.load_data(max_examples=min(max_examples, 150))
@@ -123,9 +100,7 @@ def run_stage3_financebench(model_name: str, max_examples: int = 20):
 
 
 def run_stage4_trec_biogen(model_name: str):
-    print("=" * 60)
     print("STAGE 4: TREC-Biogen - VERIFICATION REQUIRED")
-    print("=" * 60)
 
     benchmark = create_trec_biogen_benchmark()
     verification = benchmark.verify_data_access()
@@ -140,9 +115,7 @@ def run_stage4_trec_biogen(model_name: str):
 
 
 def run_stage5_freshstack(model_name: str):
-    print("=" * 60)
     print("STAGE 5: FreshStack - VERIFICATION REQUIRED")
-    print("=" * 60)
 
     benchmark = create_freshstack_benchmark()
     verification = benchmark.verify_data_access()
@@ -205,9 +178,7 @@ def main():
             else:
                 print("Stage 5 requires verification first. Use --verify-only")
 
-    print("\n" + "=" * 60)
     print("SUMMARY")
-    print("=" * 60)
     for stage, success in results.items():
         status = "PASSED" if success else "FAILED/SKIPPED"
         print(f"  Stage {stage}: {status}")

@@ -77,6 +77,33 @@ class Trajectory:
     sufficiency_reason: str = ""
     started_at: datetime = field(default_factory=datetime.now)
     completed_at: Optional[datetime] = None
+    execution_mode: str = "legacy"
+    termination_reason: str = ""
+    curated_document_ids: List[str] = field(default_factory=list)
+    action_history: List[Dict[str, Any]] = field(default_factory=list)
+    claims: List[Dict[str, Any]] = field(default_factory=list)
+    verification: Dict[str, Any] = field(default_factory=dict)
+    curated_set_recall: float = 0.0
+    claim_coverage: float = 0.0
+    citation_support: float = 0.0
+    citation_accuracy: float = 0.0
+    mandatory_requirement_compliance: Optional[bool] = None
+    turns: int = 0
+    search_calls: int = 0
+    read_calls: int = 0
+    unique_sources: int = 0
+    repeated_actions: int = 0
+    search_branching: int = 0
+    backtracking: int = 0
+    time_to_first_evidence_ms: Optional[float] = None
+    time_to_sufficiency_ms: Optional[float] = None
+    total_duration_ms: float = 0.0
+    failure_mode: str = ""
+    primary_failure_category: str = ""
+    secondary_failure_categories: List[str] = field(default_factory=list)
+    first_failure_turn: Optional[int] = None
+    recovery_turn: Optional[int] = None
+    final_failure_category: str = ""
 
     def add_stage_log(self, log: StageLog):
         self.stage_logs.append(log)
@@ -112,6 +139,33 @@ class Trajectory:
             "sufficiency_reason": self.sufficiency_reason,
             "started_at": self.started_at.isoformat(),
             "completed_at": self.completed_at.isoformat() if self.completed_at else None
+            ,"execution_mode": self.execution_mode,
+            "termination_reason": self.termination_reason,
+            "curated_document_ids": self.curated_document_ids,
+            "action_history": self.action_history
+            ,"claims": self.claims
+            ,"verification": self.verification
+            ,"curated_set_recall": self.curated_set_recall
+            ,"claim_coverage": self.claim_coverage
+            ,"citation_support": self.citation_support
+            ,"citation_accuracy": self.citation_accuracy
+            ,"mandatory_requirement_compliance": self.mandatory_requirement_compliance
+            ,"turns": self.turns
+            ,"search_calls": self.search_calls
+            ,"read_calls": self.read_calls
+            ,"unique_sources": self.unique_sources
+            ,"repeated_actions": self.repeated_actions
+            ,"search_branching": self.search_branching
+            ,"backtracking": self.backtracking
+            ,"time_to_first_evidence_ms": self.time_to_first_evidence_ms
+            ,"time_to_sufficiency_ms": self.time_to_sufficiency_ms
+            ,"total_duration_ms": self.total_duration_ms
+            ,"failure_mode": self.failure_mode
+            ,"primary_failure_category": self.primary_failure_category
+            ,"secondary_failure_categories": self.secondary_failure_categories
+            ,"first_failure_turn": self.first_failure_turn
+            ,"recovery_turn": self.recovery_turn
+            ,"final_failure_category": self.final_failure_category
         }
 
 
@@ -142,6 +196,7 @@ class BenchmarkResult:
     total_queries: int = 0
     completed_queries: int = 0
     failed_queries: int = 0
+    metrics: Dict[str, Any] = field(default_factory=dict)
 
     def compute_aggregates(self):
         if not self.trajectories:
@@ -151,8 +206,25 @@ class BenchmarkResult:
         self.failed_queries = self.total_queries - self.completed_queries
         self.avg_trajectory_recall = sum(t.trajectory_recall for t in self.trajectories) / self.total_queries
         self.avg_output_recall = sum(t.output_recall for t in self.trajectories) / self.total_queries
-        self.sufficiency_accuracy = 0.0
-        self.citation_accuracy = 0.0
+        self.sufficiency_accuracy = sum(t.sufficiency_decision for t in self.trajectories) / self.total_queries
+        self.citation_accuracy = sum(t.citation_accuracy for t in self.trajectories) / self.total_queries
+        self.metrics = {
+            "avg_curated_set_recall": sum(t.curated_set_recall for t in self.trajectories) / self.total_queries,
+            "avg_claim_coverage": sum(t.claim_coverage for t in self.trajectories) / self.total_queries,
+            "avg_citation_support": sum(t.citation_support for t in self.trajectories) / self.total_queries,
+            "avg_turns": sum(t.turns for t in self.trajectories) / self.total_queries,
+            "avg_search_calls": sum(t.search_calls for t in self.trajectories) / self.total_queries,
+            "avg_read_calls": sum(t.read_calls for t in self.trajectories) / self.total_queries,
+            "avg_unique_sources": sum(t.unique_sources for t in self.trajectories) / self.total_queries,
+            "avg_total_duration_ms": sum(t.total_duration_ms for t in self.trajectories) / self.total_queries,
+            "failure_mode_distribution": self._failure_distribution(),
+        }
+
+    def _failure_distribution(self) -> Dict[str, int]:
+        distribution: Dict[str, int] = {}
+        for trajectory in self.trajectories:
+            distribution[trajectory.failure_mode] = distribution.get(trajectory.failure_mode, 0) + 1
+        return distribution
 
     def to_dict(self) -> Dict:
         return {
@@ -165,5 +237,6 @@ class BenchmarkResult:
             "total_queries": self.total_queries,
             "completed_queries": self.completed_queries,
             "failed_queries": self.failed_queries,
+            "metrics": self.metrics,
             "trajectories": [t.to_dict() for t in self.trajectories]
         }

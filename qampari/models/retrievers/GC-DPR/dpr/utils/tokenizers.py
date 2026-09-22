@@ -6,9 +6,6 @@
 # LICENSE file in the root directory of this source tree.
 
 
-"""
-Most of the tokenizers code here is copied from DrQA codebase to avoid adding extra dependency
-"""
 
 import copy
 import logging
@@ -20,7 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 class Tokens(object):
-    """A class to represent a list of tokenized text."""
     TEXT = 0
     TEXT_WS = 1
     SPAN = 2
@@ -34,68 +30,41 @@ class Tokens(object):
         self.opts = opts or {}
 
     def __len__(self):
-        """The number of tokens."""
         return len(self.data)
 
     def slice(self, i=None, j=None):
-        """Return a view of the list of tokens from [i, j)."""
         new_tokens = copy.copy(self)
         new_tokens.data = self.data[i: j]
         return new_tokens
 
     def untokenize(self):
-        """Returns the original text (with whitespace reinserted)."""
         return ''.join([t[self.TEXT_WS] for t in self.data]).strip()
 
     def words(self, uncased=False):
-        """Returns a list of the text of each token
-
-        Args:
-            uncased: lower cases text
-        """
         if uncased:
             return [t[self.TEXT].lower() for t in self.data]
         else:
             return [t[self.TEXT] for t in self.data]
 
     def offsets(self):
-        """Returns a list of [start, end) character offsets of each token."""
         return [t[self.SPAN] for t in self.data]
 
     def pos(self):
-        """Returns a list of part-of-speech tags of each token.
-        Returns None if this annotation was not included.
-        """
         if 'pos' not in self.annotators:
             return None
         return [t[self.POS] for t in self.data]
 
     def lemmas(self):
-        """Returns a list of the lemmatized text of each token.
-        Returns None if this annotation was not included.
-        """
         if 'lemma' not in self.annotators:
             return None
         return [t[self.LEMMA] for t in self.data]
 
     def entities(self):
-        """Returns a list of named-entity-recognition tags of each token.
-        Returns None if this annotation was not included.
-        """
         if 'ner' not in self.annotators:
             return None
         return [t[self.NER] for t in self.data]
 
     def ngrams(self, n=1, uncased=False, filter_fn=None, as_strings=True):
-        """Returns a list of all ngrams from length 1 to n.
-
-        Args:
-            n: upper limit of ngram length
-            uncased: lower cases text
-            filter_fn: user function that takes in an ngram list and returns
-              True or False to keep or not keep the ngram
-            as_string: return the ngram as a string vs list
-        """
 
         def _skip(gram):
             if not filter_fn:
@@ -115,7 +84,6 @@ class Tokens(object):
         return ngrams
 
     def entity_groups(self):
-        """Group consecutive entity tokens with the same NER tag."""
         entities = self.entities()
         if not entities:
             return None
@@ -137,9 +105,6 @@ class Tokens(object):
 
 
 class Tokenizer(object):
-    """Base tokenizer class.
-    Tokenizers implement tokenize, which should return a Tokens class.
-    """
 
     def tokenize(self, text):
         raise NotImplementedError
@@ -156,10 +121,6 @@ class SimpleTokenizer(Tokenizer):
     NON_WS = r'[^\p{Z}\p{C}]'
 
     def __init__(self, **kwargs):
-        """
-        Args:
-            annotators: None or empty set (only tokenizes).
-        """
         self._regexp = regex.compile(
             '(%s)|(%s)' % (self.ALPHA_NUM, self.NON_WS),
             flags=regex.IGNORECASE + regex.UNICODE + regex.MULTILINE
@@ -196,11 +157,6 @@ class SimpleTokenizer(Tokenizer):
 class SpacyTokenizer(Tokenizer):
 
     def __init__(self, **kwargs):
-        """
-        Args:
-            annotators: set that can include pos, lemma, and ner.
-            model: spaCy model to use (either path, or keyword like 'en').
-        """
         model = kwargs.get('model', 'en')
         self.annotators = copy.deepcopy(kwargs.get('annotators', set()))
         nlp_kwargs = {'parser': False}

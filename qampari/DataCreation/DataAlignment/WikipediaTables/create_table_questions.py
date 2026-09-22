@@ -96,9 +96,6 @@ def create_questions_complex_table(tables):
 
 def load_tables(base_path: str):
 
-    """
-    Loads all the tables and their alignment, delete tables that don't stand by our rules
-    """
 
     dir_list = os.listdir(base_path)
     total_data = dict()

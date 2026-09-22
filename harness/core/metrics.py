@@ -21,6 +21,60 @@ class RecallMetrics:
 class MetricsCalculator:
 
     @staticmethod
+    def enrich_trajectory(trajectory: Trajectory) -> None:
+        trajectory.compute_recalls()
+        trajectory.turns = len(trajectory.action_history) or len(trajectory.stage_logs)
+        actions = trajectory.action_history
+        search_names = {"fan_out_search", "search_corpus", "grep_corpus"}
+        trajectory.search_calls = sum(item.get("action") in search_names for item in actions)
+        trajectory.read_calls = sum(item.get("action") == "read_document" for item in actions)
+        trajectory.repeated_actions = max(0, len(actions) - len({(item.get("action"), str(item.get("arguments", {}))) for item in actions}))
+        trajectory.search_branching = sum(
+            max(0, len(item.get("arguments", {}).get("queries", [])) - 1)
+            for item in actions if item.get("action") == "fan_out_search"
+        )
+        trajectory.backtracking = sum(
+            1 for item in actions
+            if item.get("action") in {"curate", "verify"} and item.get("turn", 0) > 0
+        )
+        trajectory.unique_sources = len({item.split("_chunk_", 1)[0] for item in trajectory.all_retrieved_chunk_ids})
+        elapsed_ms = 0.0
+        for log in trajectory.stage_logs:
+            elapsed_ms += log.duration_ms
+            if log.stage.value == "search_read" and trajectory.all_retrieved_chunk_ids:
+                trajectory.time_to_first_evidence_ms = elapsed_ms
+            if log.stage.value == "sufficiency_check":
+                trajectory.time_to_sufficiency_ms = elapsed_ms
+        curated_ids = set(trajectory.curated_document_ids)
+        gold_docs = {item.split("_chunk_", 1)[0] for item in trajectory.gold_relevant_chunk_ids}
+        trajectory.curated_set_recall = len(curated_ids & gold_docs) / len(gold_docs) if gold_docs else 0.0
+
+        synthesis_log = next((log for log in reversed(trajectory.stage_logs) if log.stage.value == "synthesis"), None)
+        verifier_log = next((log for log in reversed(trajectory.stage_logs) if log.stage.value == "verifier"), None)
+        if synthesis_log:
+            trajectory.claims = synthesis_log.output_data.get("claims", [])
+        if verifier_log:
+            trajectory.verification = verifier_log.output_data
+            verified = verifier_log.output_data.get("claims_verified", [])
+            supported = [item for item in verified if item.get("claim_supported")]
+            trajectory.citation_support = len(supported) / len(verified) if verified else 0.0
+            trajectory.citation_accuracy = 1.0 if verifier_log.output_data.get("all_citations_valid") else 0.0
+            trajectory.claim_coverage = len(verified) / len(trajectory.claims) if trajectory.claims else 0.0
+
+        trajectory.failure_mode = MetricsCalculator._determine_failure_mode(
+            RecallMetrics(
+                trajectory_recall=trajectory.trajectory_recall,
+                output_recall=trajectory.output_recall,
+                gold_chunks_total=len(trajectory.gold_relevant_chunk_ids),
+            )
+        )
+        trajectory.primary_failure_category = trajectory.failure_mode
+        if trajectory.failure_mode == "success":
+            trajectory.final_failure_category = "none"
+        else:
+            trajectory.final_failure_category = trajectory.failure_mode
+
+    @staticmethod
     def calculate(trajectory: Trajectory) -> RecallMetrics:
         gold_set = set(trajectory.gold_relevant_chunk_ids)
         retrieved_set = set(trajectory.all_retrieved_chunk_ids)

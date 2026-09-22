@@ -3,7 +3,6 @@ import os
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 from pathlib import Path
-
 from .models import StageLog, Trajectory, StageName, BenchmarkResult
 
 
@@ -82,9 +81,7 @@ class ConsoleLogger:
 
     @staticmethod
     def stage_start(stage: StageName, query_id: str):
-        print(f"\n{'='*60}")
-        print(f"STAGE: {stage.value.upper()} | Query: {query_id}")
-        print(f"{'='*60}")
+        print(f"\nStage: {stage.value.upper()} | Query: {query_id}")
 
     @staticmethod
     def stage_complete(stage: StageName, duration_ms: float):

@@ -11,9 +11,6 @@ import argparse
 
 def wikidata(filename: str):
 
-    """
-    Given a path to the wikidata dump, retrieves it entity per entity.
-    """
 
     with bz2.open(filename, mode='rt') as f:
         f.read(2) # skip first two bytes: "{\n"
@@ -26,11 +23,6 @@ def wikidata(filename: str):
 
 def retrieve_all(file_dir: str):
 
-    """
-    Goven a path to a directory of file, we load all the questions the couples of property and entity (potential simple
-    question), then filter out all the questions that have less than 5 answers.
-    We also filter out all the entities that are not the answer to some question.
-    """
 
     subdirs = os.listdir(file_dir)
     relevant_infos, couples = defaultdict(lambda: {}), defaultdict(lambda: [])
@@ -67,9 +59,6 @@ def retrieve_all(file_dir: str):
 
 def parse_answer(answer: str):
 
-    """
-    Parses a property related dict.
-    """
 
     try:
         if answer['mainsnak']['datavalue']['type'] == 'wikibase-entityid':
@@ -104,9 +93,6 @@ def save_cache(relevant_infos: dict, couples: dict, out_dir: str, cache_num: int
 
 def retrieve_website(single_prop: Dict) -> str:
 
-    """
-    Receives a dict and outputs the english wikipedia url of the object.
-    """
     url = ""
     if 'sitelinks' in single_prop and 'enwiki' in single_prop['sitelinks']:
         url = f'https://en.wikipedia.org/wiki/{single_prop["sitelinks"]["enwiki"]["title"]}'
@@ -116,9 +102,6 @@ def retrieve_website(single_prop: Dict) -> str:
 
 def retrieve_labels(single_prop: Dict) -> List:
 
-    """
-    Given a property dictionary returns the label and all the alternative labels with a length larger than 3.
-    """
     potential_labels = list()
 
     # check for the main label
@@ -140,9 +123,6 @@ def retrieve_labels(single_prop: Dict) -> List:
 
 def retrieve_properties(single_prop: Dict) -> Dict:
 
-    """
-    Given the claims will return a dictionary of the properties and the objects they are about.
-    """
 
     relations = defaultdict(lambda : [])
     if 'claims' in single_prop:
@@ -163,9 +143,6 @@ def retrieve_properties(single_prop: Dict) -> Dict:
 
 def retrieve_informations(wikidata_entity):
 
-    """
-    Given a wikidata entity dic retrieves all the informations needed to continue.
-    """
 
     url = retrieve_website(wikidata_entity)
     potential_labels = retrieve_labels(wikidata_entity)
@@ -178,11 +155,6 @@ def retrieve_informations(wikidata_entity):
 
 def parse_file(file_path: str, out_dir: str):
 
-    """
-    Given a file path to a wikidata json dump, parses it and returns a dictionary containing the relevant info for each
-    wikidata entity and a dictionary of all the couples and their answers.
-    Save every 3000000 entities to a cache.
-    """
 
     relevant_infos, couples = defaultdict(lambda : {}), defaultdict(lambda : [])
     count, saved = 0, 0
@@ -221,9 +193,6 @@ def parse_file(file_path: str, out_dir: str):
 
 def main(file_path: str, output_dir: str):
 
-    """
-    Given a file path to json parsed file, we parse it and output it to the dir that we have.
-    """
 
     logging.basicConfig(filename=os.path.join(output_dir, "app.log"), filemode="w", level=logging.INFO)
 

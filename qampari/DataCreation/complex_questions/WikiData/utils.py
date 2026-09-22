@@ -67,9 +67,6 @@ def rephrase_quest_intersec(question: str):
 
 def reformulate_questions_intersec(q1: str, q2:str, subject: str):
 
-    """
-    Receives two questions that have common answers and reformulates them as one.
-    """
     if 'who' in q2.lower():
         new_quest = q1.replace('?', '') + ' and ' + q2[4:]
     else:

@@ -12,9 +12,6 @@ import json
 
 def get_superclasses(results: Dict):
 
-    """
-    Parses the list of all the results and organizes it in a list.
-    """
 
     superclasses = list()
     for i in range(len(results['results']['bindings'])):
@@ -28,9 +25,6 @@ def get_superclasses(results: Dict):
 
 def get_entity_superclasses(entity: str):
 
-    """
-    Given an entity string, returns a list of all the superclasses of which this entity is an instance of
-    """
     sleep(randint(10, 500) / 100.)
     url= 'https://query.wikidata.org/sparql'
     curr_query = """

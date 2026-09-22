@@ -4,11 +4,6 @@ import argparse
 
 def main(input_path: str, output_path: str):
 
-    """
-    Reparses the NQ data to fit the FiD supported format.
-    :param input_path: path to where the data is kept
-    :param output_path: path to where to keep the reformatted data
-    """
 
     with open(input_path, 'r') as f:
         data = json.load(f)

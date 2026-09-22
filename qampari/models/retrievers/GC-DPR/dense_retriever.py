@@ -6,9 +6,6 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-"""
- Command line tool to get dense results and validate them
-"""
 
 import argparse
 import os
@@ -25,7 +22,6 @@ import numpy as np
 import torch
 from torch import Tensor as T
 from torch import nn
-
 from dpr.data.qa_validation import calculate_matches
 from dpr.models import init_biencoder_components
 from dpr.options import add_encoder_params, setup_args_gpu, print_args, set_encoder_params_from_state, \
@@ -43,9 +39,6 @@ logger.addHandler(console)
 
 
 class DenseRetriever(object):
-    """
-    Does passage retrieving over the provided index and question encoder
-    """
     def __init__(self, question_encoder: nn.Module, batch_size: int, tensorizer: Tensorizer, index: DenseIndexer):
         self.question_encoder = question_encoder
         self.batch_size = batch_size
@@ -83,12 +76,6 @@ class DenseRetriever(object):
         return query_tensor
 
     def get_top_docs(self, query_vectors: np.array, top_docs: int = 100) -> List[Tuple[List[object], List[float]]]:
-        """
-        Does the retrieval of the best matching passages given the query vectors batch
-        :param query_vectors:
-        :param top_docs:
-        :return:
-        """
         time0 = time.time()
         results = self.index.search_knn(query_vectors, top_docs)
         logger.info('index search time: %f sec.', time.time() - time0)

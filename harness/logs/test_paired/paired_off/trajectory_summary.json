@@ -1,0 +1,304 @@
+{
+  "query_id": "paired_off",
+  "query": "Who built the search system?",
+  "model_name": "test",
+  "benchmark": "test",
+  "constraints": [],
+  "stage_logs": [
+    {
+      "stage": "planner",
+      "input_data": {
+        "query": "Who built the search system?"
+      },
+      "output_data": {
+        "constraints": [],
+        "sub_queries": [
+          {
+            "id": "sq_1",
+            "text": "Who built the search system?",
+            "dependencies": [],
+            "type": "factual"
+          }
+        ],
+        "reasoning": "Original query: Who built the search system?\n\nDecomposed sub-queries:\n  - sq_1: Who built the search system? (type: factual)"
+      },
+      "timestamp": "2026-09-22T15:29:57.962693",
+      "duration_ms": 0.0,
+      "metadata": {}
+    },
+    {
+      "stage": "search_read",
+      "input_data": {
+        "sub_queries": [
+          "Who built the search system?"
+        ]
+      },
+      "output_data": {
+        "search_results": [
+          {
+            "tool": "search_corpus",
+            "query": "Who built the search system?",
+            "top_k": 10,
+            "results": [
+              {
+                "chunk_id": "d1_chunk_0",
+                "doc_id": "d1",
+                "content": "Alice built a search system.",
+                "score": 0.3065465239510206,
+                "metadata": {}
+              }
+            ],
+            "new_chunk_ids": [
+              "d1_chunk_0"
+            ],
+            "total_seen_chunks": 1
+          },
+          {
+            "tool": "grep_corpus",
+            "pattern": "Who",
+            "max_results": 5,
+            "results": [],
+            "new_chunk_ids": [],
+            "total_seen_chunks": 1
+          }
+        ],
+        "total_chunks_retrieved": 1,
+        "working_memory_stats": {
+          "total_chunks": 1,
+          "active_chunks": 1,
+          "pruned_chunks": 0,
+          "retrieval_steps": 1,
+          "retrieval_history": [
+            {
+              "step": 1,
+              "tool": "search_corpus",
+              "query_or_pattern": "Who built the search system?",
+              "num_chunks_retrieved": 1,
+              "num_chunks_added": 1,
+              "added_chunk_ids": [
+                "d1_chunk_0"
+              ],
+              "timestamp": "2026-09-22T15:29:57.962693"
+            }
+          ]
+        }
+      },
+      "timestamp": "2026-09-22T15:29:57.969341",
+      "duration_ms": 0.0,
+      "metadata": {}
+    },
+    {
+      "stage": "working_memory",
+      "input_data": {
+        "action": "log_state"
+      },
+      "output_data": {
+        "stats": {
+          "total_chunks": 1,
+          "active_chunks": 1,
+          "pruned_chunks": 0,
+          "retrieval_steps": 1,
+          "retrieval_history": [
+            {
+              "step": 1,
+              "tool": "search_corpus",
+              "query_or_pattern": "Who built the search system?",
+              "num_chunks_retrieved": 1,
+              "num_chunks_added": 1,
+              "added_chunk_ids": [
+                "d1_chunk_0"
+              ],
+              "timestamp": "2026-09-22T15:29:57.962693"
+            }
+          ]
+        },
+        "active_chunk_ids": [
+          "d1_chunk_0"
+        ],
+        "pruned_chunk_ids": []
+      },
+      "timestamp": "2026-09-22T15:29:57.972409",
+      "duration_ms": 0.0,
+      "metadata": {}
+    },
+    {
+      "stage": "sufficiency_check",
+      "input_data": {
+        "working_memory_stats": {
+          "total_chunks": 1,
+          "active_chunks": 1,
+          "pruned_chunks": 0,
+          "retrieval_steps": 1,
+          "retrieval_history": [
+            {
+              "step": 1,
+              "tool": "search_corpus",
+              "query_or_pattern": "Who built the search system?",
+              "num_chunks_retrieved": 1,
+              "num_chunks_added": 1,
+              "added_chunk_ids": [
+                "d1_chunk_0"
+              ],
+              "timestamp": "2026-09-22T15:29:57.962693"
+            }
+          ]
+        },
+        "constraints": []
+      },
+      "output_data": {
+        "is_sufficient": true,
+        "reason": "At least one evidence chunk found",
+        "missing_info": [],
+        "confidence": 0.1
+      },
+      "timestamp": "2026-09-22T15:29:57.974409",
+      "duration_ms": 0.0,
+      "metadata": {}
+    },
+    {
+      "stage": "synthesis",
+      "input_data": {
+        "query": "Who built the search system?",
+        "working_memory_context": "[CHUNK_ID: d1_chunk_0 | DOC_ID: d1 | SOURCE: search_corpus | QUERY: Who built the search system?]\nAlice built a search system.\n",
+        "sufficiency_decision": true
+      },
+      "output_data": {
+        "answer": "Alice built a search system. [d1_chunk_0]",
+        "claims": [
+          {
+            "text": "Alice built a search system.",
+            "citations": [
+              "d1_chunk_0"
+            ],
+            "confidence": 0.3065465239510206,
+            "type": "factual"
+          }
+        ],
+        "cited_chunk_ids": [
+          "d1_chunk_0"
+        ],
+        "reasoning": "Synthesized from 1 evidence chunks. Extracted 1 claims citing 1 unique chunks."
+      },
+      "timestamp": "2026-09-22T15:29:57.977984",
+      "duration_ms": 0.0,
+      "metadata": {}
+    },
+    {
+      "stage": "verifier",
+      "input_data": {
+        "final_answer": "Alice built a search system. [d1_chunk_0]",
+        "cited_chunk_ids": [
+          "d1_chunk_0"
+        ]
+      },
+      "output_data": {
+        "all_citations_valid": true,
+        "invalid_citations": [],
+        "claims_verified": [
+          {
+            "claim_text": "Alice built a search system.",
+            "citation_chunk_ids": [
+              "d1_chunk_0"
+            ],
+            "valid_citations": [
+              "d1_chunk_0"
+            ],
+            "invalid_citations": [],
+            "claim_supported": true,
+            "support_details": {
+              "d1_chunk_0": {
+                "supported": true,
+                "overlap": 1.0,
+                "threshold": 0.3,
+                "claim_tokens": 5,
+                "chunk_tokens": 5,
+                "shared_tokens": 5
+              }
+            }
+          }
+        ]
+      },
+      "timestamp": "2026-09-22T15:29:57.978986",
+      "duration_ms": 0.0,
+      "metadata": {}
+    }
+  ],
+  "all_retrieved_chunk_ids": [
+    "d1_chunk_0"
+  ],
+  "final_cited_chunk_ids": [
+    "d1_chunk_0"
+  ],
+  "gold_relevant_chunk_ids": [
+    "d1_chunk_0"
+  ],
+  "final_answer": "Alice built a search system. [d1_chunk_0]",
+  "trajectory_recall": 1.0,
+  "output_recall": 1.0,
+  "sufficiency_decision": true,
+  "sufficiency_reason": "At least one evidence chunk found",
+  "started_at": "2026-09-22T15:29:57.962693",
+  "completed_at": "2026-09-22T15:29:57.978986",
+  "execution_mode": "off",
+  "termination_reason": "",
+  "curated_document_ids": [],
+  "action_history": [],
+  "claims": [
+    {
+      "text": "Alice built a search system.",
+      "citations": [
+        "d1_chunk_0"
+      ],
+      "confidence": 0.3065465239510206,
+      "type": "factual"
+    }
+  ],
+  "verification": {
+    "all_citations_valid": true,
+    "invalid_citations": [],
+    "claims_verified": [
+      {
+        "claim_text": "Alice built a search system.",
+        "citation_chunk_ids": [
+          "d1_chunk_0"
+        ],
+        "valid_citations": [
+          "d1_chunk_0"
+        ],
+        "invalid_citations": [],
+        "claim_supported": true,
+        "support_details": {
+          "d1_chunk_0": {
+            "supported": true,
+            "overlap": 1.0,
+            "threshold": 0.3,
+            "claim_tokens": 5,
+            "chunk_tokens": 5,
+            "shared_tokens": 5
+          }
+        }
+      }
+    ]
+  },
+  "curated_set_recall": 0.0,
+  "claim_coverage": 1.0,
+  "citation_support": 1.0,
+  "citation_accuracy": 1.0,
+  "mandatory_requirement_compliance": null,
+  "turns": 6,
+  "search_calls": 0,
+  "read_calls": 0,
+  "unique_sources": 1,
+  "repeated_actions": 0,
+  "search_branching": 0,
+  "backtracking": 0,
+  "time_to_first_evidence_ms": 0.0,
+  "time_to_sufficiency_ms": 0.0,
+  "total_duration_ms": 16.293,
+  "failure_mode": "success",
+  "primary_failure_category": "success",
+  "secondary_failure_categories": [],
+  "first_failure_turn": null,
+  "recovery_turn": null,
+  "final_failure_category": "none"
+}

@@ -1,0 +1,21 @@
+{
+  "stage": "planner",
+  "input_data": {
+    "query": "Who built the search system?"
+  },
+  "output_data": {
+    "constraints": [],
+    "sub_queries": [
+      {
+        "id": "sq_1",
+        "text": "Who built the search system?",
+        "dependencies": [],
+        "type": "factual"
+      }
+    ],
+    "reasoning": "Original query: Who built the search system?\n\nDecomposed sub-queries:\n  - sq_1: Who built the search system? (type: factual)"
+  },
+  "timestamp": "2026-09-22T15:29:57.962693",
+  "duration_ms": 0.0,
+  "metadata": {}
+}

@@ -1,0 +1,411 @@
+{
+  "query_id": "test_1",
+  "query": "What was Apple's revenue in 2022?",
+  "model_name": "test_model",
+  "benchmark": "test",
+  "constraints": [
+    {
+      "type": "temporal",
+      "description": "Temporal constraint: in 2022",
+      "raw_text": "in 2022",
+      "parsed_value": {
+        "subtype": "year",
+        "full_match": "in 2022",
+        "groups": [
+          "in",
+          "2022"
+        ]
+      }
+    }
+  ],
+  "stage_logs": [
+    {
+      "stage": "planner",
+      "input_data": {
+        "query": "What was Apple's revenue in 2022?"
+      },
+      "output_data": {
+        "constraints": [
+          {
+            "type": "temporal",
+            "description": "Temporal constraint: in 2022",
+            "raw_text": "in 2022",
+            "parsed_value": {
+              "subtype": "year",
+              "full_match": "in 2022",
+              "groups": [
+                "in",
+                "2022"
+              ]
+            }
+          }
+        ],
+        "sub_queries": [
+          {
+            "id": "sq_1",
+            "text": "What was Apple's revenue in 2022?",
+            "dependencies": [],
+            "type": "factual"
+          }
+        ],
+        "reasoning": "Original query: What was Apple's revenue in 2022?\n\nExtracted constraints:\n  - [temporal] Temporal constraint: in 2022\n\nDecomposed sub-queries:\n  - sq_1: What was Apple's revenue in 2022? (type: factual)"
+      },
+      "timestamp": "2026-09-22T15:29:57.899041",
+      "duration_ms": 0.0,
+      "metadata": {}
+    },
+    {
+      "stage": "search_read",
+      "input_data": {
+        "sub_queries": [
+          "What was Apple's revenue in 2022?"
+        ]
+      },
+      "output_data": {
+        "search_results": [
+          {
+            "tool": "search_corpus",
+            "query": "What was Apple's revenue in 2022?",
+            "top_k": 5,
+            "results": [
+              {
+                "chunk_id": "d2_chunk_0",
+                "doc_id": "d2",
+                "content": "Microsoft revenue was $211B in 2023.",
+                "score": 0.5786317637293478,
+                "metadata": {}
+              },
+              {
+                "chunk_id": "d1_chunk_0",
+                "doc_id": "d1",
+                "content": "Apple revenue was $394B in 2022.",
+                "score": 0.46724290839207344,
+                "metadata": {}
+              }
+            ],
+            "new_chunk_ids": [
+              "d2_chunk_0",
+              "d1_chunk_0"
+            ],
+            "total_seen_chunks": 2
+          },
+          {
+            "tool": "grep_corpus",
+            "pattern": "What",
+            "max_results": 5,
+            "results": [],
+            "new_chunk_ids": [],
+            "total_seen_chunks": 2
+          }
+        ],
+        "total_chunks_retrieved": 2,
+        "working_memory_stats": {
+          "total_chunks": 2,
+          "active_chunks": 2,
+          "pruned_chunks": 0,
+          "retrieval_steps": 1,
+          "retrieval_history": [
+            {
+              "step": 1,
+              "tool": "search_corpus",
+              "query_or_pattern": "What was Apple's revenue in 2022?",
+              "num_chunks_retrieved": 2,
+              "num_chunks_added": 2,
+              "added_chunk_ids": [
+                "d2_chunk_0",
+                "d1_chunk_0"
+              ],
+              "timestamp": "2026-09-22T15:29:57.900042"
+            }
+          ]
+        }
+      },
+      "timestamp": "2026-09-22T15:29:57.906986",
+      "duration_ms": 2.028226852416992,
+      "metadata": {}
+    },
+    {
+      "stage": "working_memory",
+      "input_data": {
+        "action": "log_state"
+      },
+      "output_data": {
+        "stats": {
+          "total_chunks": 2,
+          "active_chunks": 2,
+          "pruned_chunks": 0,
+          "retrieval_steps": 1,
+          "retrieval_history": [
+            {
+              "step": 1,
+              "tool": "search_corpus",
+              "query_or_pattern": "What was Apple's revenue in 2022?",
+              "num_chunks_retrieved": 2,
+              "num_chunks_added": 2,
+              "added_chunk_ids": [
+                "d2_chunk_0",
+                "d1_chunk_0"
+              ],
+              "timestamp": "2026-09-22T15:29:57.900042"
+            }
+          ]
+        },
+        "active_chunk_ids": [
+          "d2_chunk_0",
+          "d1_chunk_0"
+        ],
+        "pruned_chunk_ids": []
+      },
+      "timestamp": "2026-09-22T15:29:57.908994",
+      "duration_ms": 0.0,
+      "metadata": {}
+    },
+    {
+      "stage": "sufficiency_check",
+      "input_data": {
+        "working_memory_stats": {
+          "total_chunks": 2,
+          "active_chunks": 2,
+          "pruned_chunks": 0,
+          "retrieval_steps": 1,
+          "retrieval_history": [
+            {
+              "step": 1,
+              "tool": "search_corpus",
+              "query_or_pattern": "What was Apple's revenue in 2022?",
+              "num_chunks_retrieved": 2,
+              "num_chunks_added": 2,
+              "added_chunk_ids": [
+                "d2_chunk_0",
+                "d1_chunk_0"
+              ],
+              "timestamp": "2026-09-22T15:29:57.900042"
+            }
+          ]
+        },
+        "constraints": [
+          {
+            "type": "temporal",
+            "description": "Temporal constraint: in 2022"
+          }
+        ]
+      },
+      "output_data": {
+        "is_sufficient": true,
+        "reason": "At least one evidence chunk found",
+        "missing_info": [],
+        "confidence": 0.2
+      },
+      "timestamp": "2026-09-22T15:29:57.911008",
+      "duration_ms": 0.0,
+      "metadata": {}
+    },
+    {
+      "stage": "synthesis",
+      "input_data": {
+        "query": "What was Apple's revenue in 2022?",
+        "working_memory_context": "[CHUNK_ID: d2_chunk_0 | DOC_ID: d2 | SOURCE: search_corpus | QUERY: What was Apple's revenue in 2022?]\nMicrosoft revenue was $211B in 2023.\n\n---\n[CHUNK_ID: d1_chunk_0 | DOC_ID: d1 | SOURCE: search_corpus | QUERY: What was Apple's revenue in 2022?]\nApple revenue was $394B in 2022.\n",
+        "sufficiency_decision": true
+      },
+      "output_data": {
+        "answer": "Microsoft revenue was $211B in 2023. [d2_chunk_0] Apple revenue was $394B in 2022. [d1_chunk_0]",
+        "claims": [
+          {
+            "text": "Microsoft revenue was $211B in 2023.",
+            "citations": [
+              "d2_chunk_0"
+            ],
+            "confidence": 0.5786317637293478,
+            "type": "factual"
+          },
+          {
+            "text": "Apple revenue was $394B in 2022.",
+            "citations": [
+              "d1_chunk_0"
+            ],
+            "confidence": 0.46724290839207344,
+            "type": "factual"
+          }
+        ],
+        "cited_chunk_ids": [
+          "d2_chunk_0",
+          "d1_chunk_0"
+        ],
+        "reasoning": "Synthesized from 2 evidence chunks. Extracted 2 claims citing 2 unique chunks."
+      },
+      "timestamp": "2026-09-22T15:29:57.916030",
+      "duration_ms": 0.0,
+      "metadata": {}
+    },
+    {
+      "stage": "verifier",
+      "input_data": {
+        "final_answer": "Microsoft revenue was $211B in 2023. [d2_chunk_0] Apple revenue was $394B in 2022. [d1_chunk_0]",
+        "cited_chunk_ids": [
+          "d2_chunk_0",
+          "d1_chunk_0"
+        ]
+      },
+      "output_data": {
+        "all_citations_valid": true,
+        "invalid_citations": [],
+        "claims_verified": [
+          {
+            "claim_text": "Microsoft revenue was $211B in 2023.",
+            "citation_chunk_ids": [
+              "d2_chunk_0"
+            ],
+            "valid_citations": [
+              "d2_chunk_0"
+            ],
+            "invalid_citations": [],
+            "claim_supported": true,
+            "support_details": {
+              "d2_chunk_0": {
+                "supported": true,
+                "overlap": 1.0,
+                "threshold": 0.3,
+                "claim_tokens": 6,
+                "chunk_tokens": 6,
+                "shared_tokens": 6
+              }
+            }
+          },
+          {
+            "claim_text": "Apple revenue was $394B in 2022.",
+            "citation_chunk_ids": [
+              "d1_chunk_0"
+            ],
+            "valid_citations": [
+              "d1_chunk_0"
+            ],
+            "invalid_citations": [],
+            "claim_supported": true,
+            "support_details": {
+              "d1_chunk_0": {
+                "supported": true,
+                "overlap": 1.0,
+                "threshold": 0.3,
+                "claim_tokens": 6,
+                "chunk_tokens": 6,
+                "shared_tokens": 6
+              }
+            }
+          }
+        ]
+      },
+      "timestamp": "2026-09-22T15:29:57.919034",
+      "duration_ms": 0.0,
+      "metadata": {}
+    }
+  ],
+  "all_retrieved_chunk_ids": [
+    "d2_chunk_0",
+    "d1_chunk_0"
+  ],
+  "final_cited_chunk_ids": [
+    "d2_chunk_0",
+    "d1_chunk_0"
+  ],
+  "gold_relevant_chunk_ids": [
+    "d1_chunk_0"
+  ],
+  "final_answer": "Microsoft revenue was $211B in 2023. [d2_chunk_0] Apple revenue was $394B in 2022. [d1_chunk_0]",
+  "trajectory_recall": 1.0,
+  "output_recall": 1.0,
+  "sufficiency_decision": true,
+  "sufficiency_reason": "At least one evidence chunk found",
+  "started_at": "2026-09-22T15:29:57.897045",
+  "completed_at": "2026-09-22T15:29:57.919792",
+  "execution_mode": "legacy",
+  "termination_reason": "",
+  "curated_document_ids": [],
+  "action_history": [],
+  "claims": [
+    {
+      "text": "Microsoft revenue was $211B in 2023.",
+      "citations": [
+        "d2_chunk_0"
+      ],
+      "confidence": 0.5786317637293478,
+      "type": "factual"
+    },
+    {
+      "text": "Apple revenue was $394B in 2022.",
+      "citations": [
+        "d1_chunk_0"
+      ],
+      "confidence": 0.46724290839207344,
+      "type": "factual"
+    }
+  ],
+  "verification": {
+    "all_citations_valid": true,
+    "invalid_citations": [],
+    "claims_verified": [
+      {
+        "claim_text": "Microsoft revenue was $211B in 2023.",
+        "citation_chunk_ids": [
+          "d2_chunk_0"
+        ],
+        "valid_citations": [
+          "d2_chunk_0"
+        ],
+        "invalid_citations": [],
+        "claim_supported": true,
+        "support_details": {
+          "d2_chunk_0": {
+            "supported": true,
+            "overlap": 1.0,
+            "threshold": 0.3,
+            "claim_tokens": 6,
+            "chunk_tokens": 6,
+            "shared_tokens": 6
+          }
+        }
+      },
+      {
+        "claim_text": "Apple revenue was $394B in 2022.",
+        "citation_chunk_ids": [
+          "d1_chunk_0"
+        ],
+        "valid_citations": [
+          "d1_chunk_0"
+        ],
+        "invalid_citations": [],
+        "claim_supported": true,
+        "support_details": {
+          "d1_chunk_0": {
+            "supported": true,
+            "overlap": 1.0,
+            "threshold": 0.3,
+            "claim_tokens": 6,
+            "chunk_tokens": 6,
+            "shared_tokens": 6
+          }
+        }
+      }
+    ]
+  },
+  "curated_set_recall": 0.0,
+  "claim_coverage": 1.0,
+  "citation_support": 1.0,
+  "citation_accuracy": 1.0,
+  "mandatory_requirement_compliance": null,
+  "turns": 6,
+  "search_calls": 0,
+  "read_calls": 0,
+  "unique_sources": 2,
+  "repeated_actions": 0,
+  "search_branching": 0,
+  "backtracking": 0,
+  "time_to_first_evidence_ms": 2.028226852416992,
+  "time_to_sufficiency_ms": 2.028226852416992,
+  "total_duration_ms": 22.747,
+  "failure_mode": "success",
+  "primary_failure_category": "success",
+  "secondary_failure_categories": [],
+  "first_failure_turn": null,
+  "recovery_turn": null,
+  "final_failure_category": "none"
+}

@@ -1,0 +1,28 @@
+{
+  "stage": "synthesis",
+  "input_data": {
+    "query": "Who built the search system?",
+    "working_memory_context": "[CHUNK_ID: d1_chunk_0 | DOC_ID: d1 | SOURCE: fan_out_search | QUERY: Who built the search system?]\nAlice built a search system.\n",
+    "sufficiency_decision": true
+  },
+  "output_data": {
+    "answer": "Alice built a search system. [d1_chunk_0]",
+    "claims": [
+      {
+        "text": "Alice built a search system.",
+        "citations": [
+          "d1_chunk_0"
+        ],
+        "confidence": 0.417989572566911,
+        "type": "factual"
+      }
+    ],
+    "cited_chunk_ids": [
+      "d1_chunk_0"
+    ],
+    "reasoning": "Synthesized from 1 evidence chunks. Extracted 1 claims citing 1 unique chunks."
+  },
+  "timestamp": "2026-09-22T13:44:10.216769",
+  "duration_ms": 2.01416015625,
+  "metadata": {}
+}

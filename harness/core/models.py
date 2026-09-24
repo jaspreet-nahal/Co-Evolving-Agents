@@ -65,6 +65,12 @@ class Trajectory:
     query: str
     model_name: str
     benchmark: str
+    task_id: str = ""
+    trial_id: str = ""
+    condition: str = ""
+    budget: Dict[str, Any] = field(default_factory=dict)
+    component_fingerprint: Dict[str, bool] = field(default_factory=dict)
+    sufficiency_events: List[Dict[str, Any]] = field(default_factory=list)
     constraints: List[Constraint] = field(default_factory=list)
     stage_logs: List[StageLog] = field(default_factory=list)
     all_retrieved_chunk_ids: List[str] = field(default_factory=list)
@@ -127,6 +133,12 @@ class Trajectory:
             "query": self.query,
             "model_name": self.model_name,
             "benchmark": self.benchmark,
+            "task_id": self.task_id,
+            "trial_id": self.trial_id,
+            "condition": self.condition,
+            "budget": self.budget,
+            "component_fingerprint": self.component_fingerprint,
+            "sufficiency_events": self.sufficiency_events,
             "constraints": [{"type": c.type, "description": c.description, "raw_text": c.raw_text, "parsed_value": c.parsed_value} for c in self.constraints],
             "stage_logs": [log.to_dict() for log in self.stage_logs],
             "all_retrieved_chunk_ids": self.all_retrieved_chunk_ids,

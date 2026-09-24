@@ -10,3 +10,5 @@ data/
 outputs/
 results/
 *.log
+.DS_Store
+harness/logs/

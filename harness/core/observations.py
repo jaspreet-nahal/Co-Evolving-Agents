@@ -10,27 +10,56 @@ class ObservationRenderer:
 
     def render(self, state: EpisodeState, latest_result: Dict[str, Any] = None) -> str:
         curated = []
-        for item_id in state.ordered_curated_ids():
-            candidate = state.candidates.get(item_id)
-            if candidate:
-                curated.append({"id": item_id, "importance": state.curated[item_id].importance, "snippet": candidate.snippet})
+        if state.curated_set is not None and state.candidate_pool is not None:
+            for item_id in state.curated_set.ordered_curated_ids():
+                candidate = state.candidate_pool.candidates.get(item_id)
+                if candidate:
+                    curated.append({
+                        "id": item_id,
+                        "importance": state.curated_set.curated[item_id].importance,
+                        "snippet": candidate.snippet,
+                    })
+
         pool = []
-        for item_id, candidate in list(state.candidates.items())[-50:]:
-            if item_id not in state.curated:
-                pool.append({"id": item_id, "score": round(candidate.score, 4), "snippet": candidate.snippet})
-        graph = [
-            {"entity": entity, "documents": sorted(doc_ids)}
-            for entity, doc_ids in state.evidence_graph.items()
-            if len(doc_ids) > 1
-        ][:8]
+        if state.candidate_pool is not None:
+            curated_ids = set(state.curated_set.curated) if state.curated_set is not None else set()
+            for item_id, candidate in list(state.candidate_pool.candidates.items())[-50:]:
+                if item_id not in curated_ids:
+                    pool.append({"id": item_id, "score": round(candidate.score, 4), "snippet": candidate.snippet})
+
+        graph = []
+        if state.evidence_graph is not None:
+            graph = [
+                {"entity": entity, "documents": sorted(doc_ids)}
+                for entity, doc_ids in state.evidence_graph.edges.items()
+                if len(doc_ids) > 1
+            ][:8]
+
+        verification = []
+        if state.verification_cache is not None:
+            verification = list(state.verification_cache.records)[-10:]
+
+        sufficiency = None
+        if state.sufficiency is not None and state.sufficiency.history:
+            latest = state.sufficiency.history[-1]
+            sufficiency = {"decision": latest.decision, "reason": latest.reason, "confidence": latest.confidence}
+
         payload = {
             "query": state.query,
             "turn": state.turn,
             "budget": {"turns_used": state.turn, "turns_remaining": max(state.max_turns - state.turn, 0)},
+            "enabled_components": {
+                "candidate_pool": state.enable_candidate_pool,
+                "curated_set": state.enable_curated_set,
+                "evidence_graph": state.enable_evidence_graph,
+                "verification_cache": state.enable_verification_cache,
+                "sufficiency_check": state.enable_sufficiency_check,
+            },
             "curated_set": curated,
             "candidate_pool": pool,
             "evidence_graph": graph,
-            "verification": list(state.verification_cache)[-10:],
+            "verification": verification,
+            "sufficiency": sufficiency,
             "recent_actions": [
                 {"turn": event.turn, "action": event.action, "result": event.result_summary}
                 for event in state.action_history[-self.recent_actions:]

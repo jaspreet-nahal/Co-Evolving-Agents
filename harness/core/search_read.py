@@ -16,6 +16,52 @@ class CorpusDocument:
     chunks: List['CorpusChunk'] = field(default_factory=list)
 
 
+class CorpusDocumentConversionError(ValueError):
+    """Raised when raw adapter/corpus input cannot be converted to a CorpusDocument.
+
+    Callers must not catch this to silently substitute fabricated data; a
+    conversion failure means the caller's corpus source is malformed and
+    that must surface, not be papered over.
+    """
+
+
+def to_corpus_document(raw: Any) -> "CorpusDocument":
+    """Canonical conversion boundary from adapter/raw corpus records to CorpusDocument.
+
+    This is the single place that understands the loose, adapter-specific
+    dict shapes seen across benchmarks (`id`/`doc_id`, `text`/`content`).
+    Benchmark adapters and InMemoryCorpusIndex must route all document
+    construction through this function instead of each re-implementing
+    their own ad-hoc dict -> CorpusDocument mapping (D-024).
+
+    Raises CorpusDocumentConversionError if `raw` is missing required
+    identity/content fields -- it never fabricates a document id or content
+    out of nothing.
+    """
+    if isinstance(raw, CorpusDocument):
+        return raw
+
+    if not isinstance(raw, dict):
+        raise CorpusDocumentConversionError(
+            f"Cannot convert {type(raw).__name__} to CorpusDocument; expected a CorpusDocument or dict."
+        )
+
+    doc_id = raw.get("id", raw.get("doc_id"))
+    if not doc_id:
+        raise CorpusDocumentConversionError(
+            "Corpus record is missing a document id (expected 'id' or 'doc_id')."
+        )
+
+    content = raw.get("text", raw.get("content"))
+    if content is None:
+        raise CorpusDocumentConversionError(
+            f"Corpus record '{doc_id}' is missing document content (expected 'text' or 'content')."
+        )
+
+    metadata = raw.get("metadata", {})
+    return CorpusDocument(doc_id=str(doc_id), content=content, metadata=metadata)
+
+
 @dataclass
 class CorpusChunk:
     chunk_id: str
@@ -56,13 +102,8 @@ class InMemoryCorpusIndex(CorpusIndex):
         self._bm25_index = None
 
     def add_document(self, doc: CorpusDocument):
-        if isinstance(doc, dict):
-            doc_id = doc.get("id", doc.get("doc_id", str(uuid.uuid4())))
-            content = doc.get("text", doc.get("content", ""))
-            metadata = doc.get("metadata", {})
-            doc = CorpusDocument(doc_id=doc_id, content=content, metadata=metadata)
-            self._chunk_document(doc)
-        elif not doc.chunks:
+        doc = to_corpus_document(doc)
+        if not doc.chunks:
             self._chunk_document(doc)
         self.documents[doc.doc_id] = doc
         for chunk in doc.chunks:
@@ -77,7 +118,6 @@ class InMemoryCorpusIndex(CorpusIndex):
                 metadata = {k: v for k, v in data.items() if k not in [text_field, id_field]}
 
                 doc = CorpusDocument(doc_id=doc_id, content=content, metadata=metadata)
-                self._chunk_document(doc)
                 self.add_document(doc)
 
     def _chunk_document(self, doc: CorpusDocument):
@@ -131,12 +171,13 @@ class InMemoryCorpusIndex(CorpusIndex):
             chunk_terms = set(chunk.content.lower().split())
             overlap = len(query_terms & chunk_terms)
             if overlap > 0:
-                dense_score = np.random.random() * 0.3
-                bm25_score = overlap / len(query_terms) * 0.7
-                total_score = bm25_score + dense_score
-                scored_chunks.append((chunk, total_score))
+                bm25_score = overlap / len(query_terms)
+                scored_chunks.append((chunk, bm25_score))
 
-        scored_chunks.sort(key=lambda x: x[1], reverse=True)
+        # Deterministic ordering: sort by score desc, then chunk_id asc as a
+        # stable tie-break so identical query+corpus always yields identical
+        # ranking (required for paired H0/H1 reproducibility).
+        scored_chunks.sort(key=lambda item: (-item[1], item[0].chunk_id))
 
         results = []
         for chunk, score in scored_chunks[:top_k]:
@@ -168,14 +209,26 @@ class InMemoryCorpusIndex(CorpusIndex):
 
 
 class SearchReadTools:
+    """Adapter exposing the corpus as stateless-looking search/read/grep tools.
 
-    def __init__(self, corpus_index: CorpusIndex):
+    `suppress_seen` controls whether previously-returned chunk ids are
+    excluded from future search/grep results (re-retrieval suppression).
+    This is itself a piece of harness state -- it must be explicitly
+    configurable and OFF for the strict H0 executor (FlatReActExecutor),
+    which is required to expose only stateless tools from the harness's
+    perspective. It defaults to True to preserve existing legacy/H1
+    behavior.
+    """
+
+    def __init__(self, corpus_index: CorpusIndex, suppress_seen: bool = True):
         self.corpus_index = corpus_index
+        self.suppress_seen = suppress_seen
         self.seen_chunk_ids: Set[str] = set()
         self.all_search_results: List[Dict[str, Any]] = []
 
     def search_corpus(self, query: str, top_k: int = 10) -> Dict[str, Any]:
-        results = self.corpus_index.search(query, top_k, self.seen_chunk_ids)
+        exclude = self.seen_chunk_ids if self.suppress_seen else set()
+        results = self.corpus_index.search(query, top_k, exclude)
 
         new_chunk_ids = [c.chunk_id for c in results]
         self.seen_chunk_ids.update(new_chunk_ids)
@@ -202,7 +255,8 @@ class SearchReadTools:
         return result
 
     def grep_corpus(self, pattern: str, max_results: int = 5) -> Dict[str, Any]:
-        results = self.corpus_index.grep(pattern, max_results, self.seen_chunk_ids)
+        exclude = self.seen_chunk_ids if self.suppress_seen else set()
+        results = self.corpus_index.grep(pattern, max_results, exclude)
 
         new_chunk_ids = [c.chunk_id for c in results]
         self.seen_chunk_ids.update(new_chunk_ids)

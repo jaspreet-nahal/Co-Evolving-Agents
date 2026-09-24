@@ -26,7 +26,8 @@ class MetricsCalculator:
         trajectory.turns = len(trajectory.action_history) or len(trajectory.stage_logs)
         actions = trajectory.action_history
         search_names = {"fan_out_search", "search_corpus", "grep_corpus"}
-        trajectory.search_calls = sum(item.get("action") in search_names for item in actions)
+        if actions:
+            trajectory.search_calls = sum(item.get("action") in search_names for item in actions)
         trajectory.read_calls = sum(item.get("action") == "read_document" for item in actions)
         trajectory.repeated_actions = max(0, len(actions) - len({(item.get("action"), str(item.get("arguments", {}))) for item in actions}))
         trajectory.search_branching = sum(

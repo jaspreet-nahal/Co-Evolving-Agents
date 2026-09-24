@@ -9,6 +9,7 @@ from ..core.models import Trajectory
 from ..core.harness import DeepResearchHarness, HarnessConfig
 from ..core.metrics import RecallMetrics
 from ..core.sufficiency_check import SufficiencyConfig, SufficiencyCriterion
+from ..core.search_read import to_corpus_document
 
 @dataclass
 class BrowseCompExample:
@@ -18,12 +19,22 @@ class BrowseCompExample:
     gold_chunk_ids: List[str] = field(default_factory=list)
 
 
+class RealDataUnavailableError(RuntimeError):
+    """Raised in mode='real' when a verified real corpus/dataset cannot be
+    loaded. Real benchmark execution must never silently substitute sample
+    data; callers must fix the data path/HF access or fall back to
+    mode='test' explicitly, never implicitly."""
+
+
 class BrowseCompPlusBenchmark:
 
-    def __init__(self, data_dir: str = None, corpus_dir: str = None, index_dir: str = None):
+    def __init__(self, data_dir: str = None, corpus_dir: str = None, index_dir: str = None, mode: str = "test"):
+        if mode not in ("test", "real"):
+            raise ValueError(f"mode must be 'test' or 'real', got {mode!r}")
         self.data_dir = Path(data_dir) if data_dir else Path("data/browsecomp_plus")
         self.corpus_dir = Path(corpus_dir) if corpus_dir else Path("data/browsecomp_plus_corpus")
         self.index_dir = Path(index_dir) if index_dir else Path("data/browsecomp_plus_indexes")
+        self.mode = mode
         self.examples: List[BrowseCompExample] = []
         self.corpus_index = None
 
@@ -61,9 +72,16 @@ class BrowseCompPlusBenchmark:
         try:
             return self._load_from_hf_encrypted(max_examples)
         except Exception as e:
+            if self.mode == "real":
+                raise RealDataUnavailableError(
+                    f"BrowseComp-Plus real-mode data load failed: no decrypted_path given/found and "
+                    f"the encrypted Hugging Face dataset could not be loaded/decrypted ({e}). Real "
+                    f"benchmark execution must never silently use sample data; fix the data source "
+                    f"or use mode='test'."
+                ) from e
             print(f"Could not load from HF: {e}")
 
-        print("Using sample BrowseComp-Plus data for testing")
+        print("Using sample BrowseComp-Plus data for testing (mode='test')")
         return self._create_sample_data(max_examples or 20)
 
     def _load_from_decrypted(self, path: str, max_examples: int = None) -> List[BrowseCompExample]:
@@ -164,7 +182,12 @@ class BrowseCompPlusBenchmark:
 
         self.corpus_index = InMemoryCorpusIndex(chunk_size=512, chunk_overlap=50)
 
-        if corpus_path and os.path.exists(corpus_path):
+        if corpus_path:
+            if not os.path.exists(corpus_path):
+                raise FileNotFoundError(
+                    f"BrowseComp-Plus corpus_path '{corpus_path}' was requested but does not exist. "
+                    f"Refusing to silently substitute sample data for an explicitly requested corpus."
+                )
             from datasets import load_dataset
             ds = load_dataset("Tevatron/browsecomp-plus-corpus", split="train")
 
@@ -172,19 +195,26 @@ class BrowseCompPlusBenchmark:
                 doc_id = item.get("id", item.get("doc_id", ""))
                 text = item.get("text", item.get("content", ""))
                 if doc_id and text:
-                    self.corpus_index.add_document({"id": doc_id, "text": text})
+                    self.corpus_index.add_document(to_corpus_document({"id": doc_id, "text": text}))
 
         elif self.index_dir.exists():
-            self._load_prebuilt_indexes()
+            raise NotImplementedError(
+                f"Pre-built index directory '{self.index_dir}' exists but pre-built index loading is "
+                f"not implemented. Refusing to silently substitute a 5-document sample corpus for what "
+                f"was set up as a real pre-built index (see architecture.md limitation D-020/D-022)."
+            )
+
+        elif self.mode == "real":
+            raise RealDataUnavailableError(
+                "BrowseComp-Plus real-mode corpus load requires an explicit, verified corpus_path "
+                "or pre-built index directory; neither was found. Real benchmark execution must "
+                "never silently use sample data."
+            )
 
         else:
             self._create_sample_corpus()
 
         return self.corpus_index
-
-    def _load_prebuilt_indexes(self):
-        print("Pre-built index loading not yet implemented, using sample corpus")
-        self._create_sample_corpus()
 
     def _create_sample_corpus(self):
         sample_docs = [
@@ -196,7 +226,7 @@ class BrowseCompPlusBenchmark:
         ]
 
         for doc in sample_docs:
-            self.corpus_index.add_document(doc)
+            self.corpus_index.add_document(to_corpus_document(doc))
 
     def run_evaluation(self, harness: DeepResearchHarness, max_examples: int = 20) -> Dict[str, Any]:
         if not self.examples:
@@ -277,5 +307,5 @@ class BrowseCompPlusBenchmark:
         }
 
 
-def create_browsecomp_plus_benchmark(data_dir: str = None, corpus_dir: str = None, index_dir: str = None) -> BrowseCompPlusBenchmark:
-    return BrowseCompPlusBenchmark(data_dir, corpus_dir, index_dir)
+def create_browsecomp_plus_benchmark(data_dir: str = None, corpus_dir: str = None, index_dir: str = None, mode: str = "test") -> BrowseCompPlusBenchmark:
+    return BrowseCompPlusBenchmark(data_dir, corpus_dir, index_dir, mode=mode)

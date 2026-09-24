@@ -7,6 +7,7 @@ from ..core.models import Trajectory
 from ..core.harness import DeepResearchHarness, HarnessConfig
 from ..core.metrics import RecallMetrics
 from ..core.sufficiency_check import SufficiencyConfig, SufficiencyCriterion
+from ..core.search_read import to_corpus_document
 
 @dataclass
 class FinanceBenchExample:
@@ -18,10 +19,20 @@ class FinanceBenchExample:
     question_type: str = ""
 
 
+class RealDataUnavailableError(RuntimeError):
+    """Raised in mode='real' when a verified real corpus/dataset cannot be
+    loaded. Real benchmark execution must never silently substitute sample
+    data; callers must fix the data path/HF access or fall back to
+    mode='test' explicitly, never implicitly."""
+
+
 class FinanceBenchBenchmark:
-    def __init__(self, data_dir: str = None, corpus_dir: str = None):
+    def __init__(self, data_dir: str = None, corpus_dir: str = None, mode: str = "test"):
+        if mode not in ("test", "real"):
+            raise ValueError(f"mode must be 'test' or 'real', got {mode!r}")
         self.data_dir = Path(data_dir) if data_dir else Path("data/financebench")
         self.corpus_dir = Path(corpus_dir) if corpus_dir else Path("data/financebench_corpus")
+        self.mode = mode
         self.examples: List[FinanceBenchExample] = []
         self.corpus_index = None
 
@@ -33,9 +44,15 @@ class FinanceBenchBenchmark:
         try:
             return self._load_from_hf(max_examples, split)
         except Exception as e:
+            if self.mode == "real":
+                raise RealDataUnavailableError(
+                    f"FinanceBench real-mode data load failed: no local files under {self.data_dir} "
+                    f"and the Hugging Face dataset could not be loaded ({e}). Real benchmark "
+                    f"execution must never silently use sample data; fix the data source or use mode='test'."
+                ) from e
             print(f"Could not load from HF: {e}")
 
-        print("Using sample FinanceBench data for testing (only 150 public questions available)")
+        print("Using sample FinanceBench data for testing (mode='test'; only 150 public questions available in real mode)")
         return self._create_sample_data(max_examples or 20)
 
     def _load_from_file(self, path: Path, max_examples: int = None) -> List[FinanceBenchExample]:
@@ -157,7 +174,12 @@ class FinanceBenchBenchmark:
 
         self.corpus_index = InMemoryCorpusIndex(chunk_size=1024, chunk_overlap=100)
 
-        if corpus_path and os.path.exists(corpus_path):
+        if corpus_path:
+            if not os.path.exists(corpus_path):
+                raise FileNotFoundError(
+                    f"FinanceBench corpus_path '{corpus_path}' was requested but does not exist. "
+                    f"Refusing to silently substitute sample data for an explicitly requested corpus."
+                )
             self.corpus_index.load_from_jsonl(corpus_path)
         elif self.corpus_dir.exists():
             for file_path in self.corpus_dir.glob("*.jsonl"):
@@ -168,6 +190,12 @@ class FinanceBenchBenchmark:
             try:
                 self._load_from_hf_corpus()
             except Exception as e:
+                if self.mode == "real":
+                    raise RealDataUnavailableError(
+                        f"FinanceBench real-mode corpus load failed: no corpus_path given, "
+                        f"{self.corpus_dir} does not exist, and the Hugging Face corpus could not "
+                        f"be loaded ({e}). Real benchmark execution must never silently use sample data."
+                    ) from e
                 print(f"Could not load HF corpus: {e}")
                 self._create_sample_corpus()
 
@@ -182,7 +210,7 @@ class FinanceBenchBenchmark:
             doc_id = item.get("id", item.get("doc_id", ""))
             text = item.get("text", item.get("content", ""))
             if doc_id and text:
-                self.corpus_index.add_document({"id": doc_id, "text": text})
+                self.corpus_index.add_document(to_corpus_document({"id": doc_id, "text": text}))
 
     def _create_sample_corpus(self):
         sample_docs = [
@@ -209,7 +237,7 @@ class FinanceBenchBenchmark:
         ]
 
         for doc in sample_docs:
-            self.corpus_index.add_document(doc)
+            self.corpus_index.add_document(to_corpus_document(doc))
 
     def run_evaluation(self, harness: DeepResearchHarness, max_examples: int = 20) -> Dict[str, Any]:
         if not self.examples:
@@ -336,5 +364,5 @@ class FinanceBenchBenchmark:
         }
 
 
-def create_financebench_benchmark(data_dir: str = None, corpus_dir: str = None) -> FinanceBenchBenchmark:
-    return FinanceBenchBenchmark(data_dir, corpus_dir)
+def create_financebench_benchmark(data_dir: str = None, corpus_dir: str = None, mode: str = "test") -> FinanceBenchBenchmark:
+    return FinanceBenchBenchmark(data_dir, corpus_dir, mode=mode)

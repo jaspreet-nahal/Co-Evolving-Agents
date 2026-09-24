@@ -12,6 +12,9 @@ class ActionType(str, Enum):
     REVIEW_DOCS = "review_docs"
     CURATE = "curate"
     VERIFY = "verify"
+    GRAPH_QUERY = "graph_query"
+    GRAPH_NEIGHBORS = "graph_neighbors"
+    CHECK_SUFFICIENCY = "check_sufficiency"
     END_SEARCH = "end_search"
 
 

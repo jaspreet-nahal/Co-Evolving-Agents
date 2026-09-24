@@ -5,9 +5,8 @@ from harness.core import ActionType, CorpusDocument, DeepResearchHarness, Episod
 
 def test_episode_state_curation_is_deterministic_and_bounded():
     state = EpisodeState("query", max_curated_docs=1)
-    state.candidates["d1"] = state.candidates["d2"] = None
-    state.candidates["d1"] = type("Candidate", (), {"item_id": "d1"})()
-    state.candidates["d2"] = type("Candidate", (), {"item_id": "d2"})()
+    state.candidate_pool.candidates["d1"] = type("Candidate", (), {"item_id": "d1"})()
+    state.candidate_pool.candidates["d2"] = type("Candidate", (), {"item_id": "d2"})()
 
     first = state.curate(["d1"], [], {"d1": "low"})
     second = state.curate(["d2"], [], {"d2": "fair"})
@@ -27,7 +26,7 @@ def test_actions_reject_unknown_names():
 
 def test_observation_renderer_is_bounded():
     state = EpisodeState("q", context_budget_chars=120)
-    state.candidates["doc"] = type("Candidate", (), {"item_id": "doc", "doc_id": "doc", "snippet": "x" * 1000, "score": 1.0})()
+    state.candidate_pool.candidates["doc"] = type("Candidate", (), {"item_id": "doc", "doc_id": "doc", "snippet": "x" * 1000, "score": 1.0})()
     rendered = ObservationRenderer(120).render(state)
     assert len(rendered) <= 120
     assert rendered.startswith("WORKINGMEMORY")
@@ -44,7 +43,11 @@ def test_harness1_episode_records_actions_and_state():
     assert trajectory.action_history
     assert trajectory.curated_document_ids == ["d1"]
     assert trajectory.termination_reason
-    assert len(trajectory.stage_logs) == 6
+    # H1 no longer runs the legacy post-hoc sufficiency stage (C5 decisions
+    # are made in-loop via check_sufficiency and logged as
+    # trajectory.sufficiency_events instead): planner, search_read,
+    # working_memory, synthesis, verifier.
+    assert len(trajectory.stage_logs) == 5
     assert trajectory.completed_at is not None
     assert trajectory.verification["claims_verified"]
     assert trajectory.turns == len(trajectory.action_history)
@@ -58,7 +61,7 @@ def test_paired_benchmark_runs_same_query_in_both_modes():
         queries=[{"query_id": "paired", "query": "Who built the search system?", "gold_chunk_ids": ["d1_chunk_0"]}],
         benchmark_name="test",
         corpus_index=index,
-        model_name="test",
+        model_name="rule_based",
         log_dir="harness/logs/test_paired",
     )
 

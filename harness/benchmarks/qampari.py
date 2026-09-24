@@ -8,6 +8,7 @@ from ..core.models import Trajectory, Constraint
 from ..core.harness import DeepResearchHarness, HarnessConfig
 from ..core.metrics import RecallMetrics
 from ..core.sufficiency_check import SufficiencyConfig, SufficiencyCriterion
+from ..core.search_read import to_corpus_document
 
 
 @dataclass
@@ -76,11 +77,21 @@ class QampariExhaustivenessScorer:
         }
 
 
+class RealDataUnavailableError(RuntimeError):
+    """Raised in mode='real' when a verified real corpus/dataset cannot be
+    loaded. Real benchmark execution must never silently substitute sample
+    data; callers must fix the data path/HF access or fall back to
+    mode='test' explicitly, never implicitly."""
+
+
 class QampariBenchmark:
 
-    def __init__(self, data_path: str = None, corpus_path: str = None):
+    def __init__(self, data_path: str = None, corpus_path: str = None, mode: str = "test"):
+        if mode not in ("test", "real"):
+            raise ValueError(f"mode must be 'test' or 'real', got {mode!r}")
         self.data_path = data_path
         self.corpus_path = corpus_path
+        self.mode = mode
         self.examples: List[QampariExample] = []
         self.corpus_index = None
         self.scorer = QampariExhaustivenessScorer()
@@ -92,9 +103,15 @@ class QampariBenchmark:
         try:
             return self._load_from_hf(max_examples)
         except Exception as e:
+            if self.mode == "real":
+                raise RealDataUnavailableError(
+                    f"QAMPARI real-mode data load failed: no data_path was given/found and the "
+                    f"Hugging Face dataset could not be loaded ({e}). Real benchmark execution "
+                    f"must never silently use sample data; fix the data source or use mode='test'."
+                ) from e
             print(f"Could not load from HF: {e}")
 
-        print("Using sample QAMPARI data for testing")
+        print("Using sample QAMPARI data for testing (mode='test')")
         return self._create_sample_data(max_examples or 20)
 
     def _load_from_file(self, path: str, max_examples: int = None) -> List[QampariExample]:
@@ -216,8 +233,18 @@ class QampariBenchmark:
 
         self.corpus_index = InMemoryCorpusIndex(chunk_size=512, chunk_overlap=50)
 
-        if corpus_path and os.path.exists(corpus_path):
+        if corpus_path:
+            if not os.path.exists(corpus_path):
+                raise FileNotFoundError(
+                    f"QAMPARI corpus_path '{corpus_path}' was requested but does not exist. "
+                    f"Refusing to silently substitute sample data for an explicitly requested corpus."
+                )
             self.corpus_index.load_from_jsonl(corpus_path)
+        elif self.mode == "real":
+            raise RealDataUnavailableError(
+                "QAMPARI real-mode corpus load requires an explicit, verified corpus_path; "
+                "none was given. Real benchmark execution must never silently use sample data."
+            )
         else:
             self._create_sample_corpus()
 
@@ -260,7 +287,7 @@ class QampariBenchmark:
         ]
 
         for doc in sample_docs:
-            self.corpus_index.add_document(doc)
+            self.corpus_index.add_document(to_corpus_document(doc))
 
     def run_evaluation(self, harness: DeepResearchHarness, max_examples: int = 20) -> Dict[str, Any]:
         if not self.examples:
@@ -376,5 +403,5 @@ class QampariBenchmark:
         }
 
 
-def create_qampari_benchmark(data_path: str = None, corpus_path: str = None) -> QampariBenchmark:
-    return QampariBenchmark(data_path, corpus_path)
+def create_qampari_benchmark(data_path: str = None, corpus_path: str = None, mode: str = "test") -> QampariBenchmark:
+    return QampariBenchmark(data_path, corpus_path, mode=mode)

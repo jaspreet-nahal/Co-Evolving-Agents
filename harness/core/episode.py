@@ -1,40 +1,9 @@
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
 from .search_read import CorpusChunk, CorpusDocument
-
-
-IMPORTANCE_RANKS = {"very_high": 0, "high": 1, "fair": 2, "low": 3}
-
-
-@dataclass
-class Candidate:
-    item_id: str
-    doc_id: str
-    chunk_ids: List[str] = field(default_factory=list)
-    snippet: str = ""
-    score: float = 0.0
-    source_tool: str = ""
-    seen_at_turn: int = 0
-
-
-@dataclass
-class CuratedItem:
-    item_id: str
-    importance: str = "fair"
-    rationale: str = ""
-    added_at_turn: int = 0
-
-
-@dataclass
-class VerificationRecord:
-    claim: str
-    item_id: str
-    supported: bool
-    rationale: str
-    created_at_turn: int
+from .components import CandidatePool, CuratedSet, EvidenceGraph, VerificationCache, SufficiencyController, VerificationRecord
 
 
 @dataclass
@@ -46,25 +15,102 @@ class ActionRecord:
     timestamp: datetime = field(default_factory=datetime.now)
 
 
-@dataclass
+class ComponentUnavailableError(RuntimeError):
+    """Raised when code tries to use a C1-C5 component that is OFF for this episode.
+
+    This is intentional and load-bearing for the scientific contract: a
+    disabled component must not exist, not merely go unused. If something
+    reaches for `state.candidate_pool` while C1 is OFF, that is a bug in
+    the caller, not a case to silently no-op.
+    """
+
+
 class EpisodeState:
-    query: str
-    max_turns: int = 40
-    max_curated_docs: int = 30
-    context_budget_chars: int = 30000
-    candidates: Dict[str, Candidate] = field(default_factory=dict)
-    curated: Dict[str, CuratedItem] = field(default_factory=dict)
-    document_store: Dict[str, CorpusDocument] = field(default_factory=dict)
-    evidence_graph: Dict[str, Set[str]] = field(default_factory=dict)
-    verification_cache: Dict[str, VerificationRecord] = field(default_factory=dict)
-    action_history: List[ActionRecord] = field(default_factory=list)
-    search_history: List[Dict[str, Any]] = field(default_factory=list)
-    seen_chunk_ids: Set[str] = field(default_factory=set)
-    turn: int = 0
-    terminated: bool = False
-    termination_reason: str = ""
-    auto_seeded: bool = False
-    duplicate_count: int = 0
+    """Per-query Harness-1 episode state.
+
+    Each of C1 (candidate_pool), C2 (curated_set), C3 (evidence_graph),
+    C4 (verification_cache), and C5 (sufficiency) is an independent,
+    optional component. When a component's enable flag is False, its slot
+    on this object is None -- the component is not merely idle, it does
+    not exist. Code that needs a component must go through the accessor
+    (`require_candidate_pool()` etc.), which raises ComponentUnavailableError
+    rather than silently creating or no-op'ing the component.
+
+    Document memory (`document_store`) and raw retrieval dedup
+    (`seen_chunk_ids`) are not part of C1-C5; they are baseline retrieval
+    bookkeeping available in H1 regardless of which of C1-C5 are enabled
+    (H1's tools are the same tools as H0's, just with structured state
+    layered on top per the enabled components).
+    """
+
+    def __init__(self, query: str, max_turns: int = 40, max_curated_docs: int = 30,
+                 context_budget_chars: int = 30000,
+                 enable_candidate_pool: bool = True,
+                 enable_curated_set: bool = True,
+                 enable_evidence_graph: bool = True,
+                 enable_verification_cache: bool = True,
+                 enable_sufficiency_check: bool = True,
+                 sufficiency_config: Any = None):
+        self.query = query
+        self.max_turns = max_turns
+        self.max_curated_docs = max_curated_docs
+        self.context_budget_chars = context_budget_chars
+
+        self.enable_candidate_pool = enable_candidate_pool
+        self.enable_curated_set = enable_curated_set
+        self.enable_evidence_graph = enable_evidence_graph
+        self.enable_verification_cache = enable_verification_cache
+        self.enable_sufficiency_check = enable_sufficiency_check
+
+        self.candidate_pool: Optional[CandidatePool] = CandidatePool() if enable_candidate_pool else None
+        self.curated_set: Optional[CuratedSet] = (
+            CuratedSet(self.candidate_pool, max_curated_docs)
+            if enable_curated_set and self.candidate_pool is not None
+            else None
+        )
+        self.evidence_graph: Optional[EvidenceGraph] = EvidenceGraph() if enable_evidence_graph else None
+        self.verification_cache: Optional[VerificationCache] = VerificationCache() if enable_verification_cache else None
+        self.sufficiency: Optional[SufficiencyController] = (
+            SufficiencyController(sufficiency_config) if enable_sufficiency_check else None
+        )
+
+        self.document_store: Dict[str, CorpusDocument] = {}
+        self.seen_chunk_ids: Set[str] = set()
+        self.action_history: List[ActionRecord] = []
+        self.search_history: List[Dict[str, Any]] = []
+        self.turn: int = 0
+        self.terminated: bool = False
+        self.termination_reason: str = ""
+        self.auto_seeded: bool = False
+
+    # -- component accessors: raise instead of silently creating/no-oping --
+
+    def require_candidate_pool(self) -> CandidatePool:
+        if self.candidate_pool is None:
+            raise ComponentUnavailableError("C1 Candidate Pool is disabled for this episode.")
+        return self.candidate_pool
+
+    def require_curated_set(self) -> CuratedSet:
+        if self.curated_set is None:
+            raise ComponentUnavailableError("C2 Curated Evidence Set is disabled for this episode.")
+        return self.curated_set
+
+    def require_evidence_graph(self) -> EvidenceGraph:
+        if self.evidence_graph is None:
+            raise ComponentUnavailableError("C3 Evidence Graph is disabled for this episode.")
+        return self.evidence_graph
+
+    def require_verification_cache(self) -> VerificationCache:
+        if self.verification_cache is None:
+            raise ComponentUnavailableError("C4 Verification Cache is disabled for this episode.")
+        return self.verification_cache
+
+    def require_sufficiency(self) -> SufficiencyController:
+        if self.sufficiency is None:
+            raise ComponentUnavailableError("C5 Explicit Sufficiency Check is disabled for this episode.")
+        return self.sufficiency
+
+    # -- baseline retrieval bookkeeping (not a C1-C5 component) --
 
     def record_action(self, action: str, arguments: Dict[str, Any], result: Dict[str, Any]) -> None:
         self.action_history.append(ActionRecord(self.turn, action, arguments, result))
@@ -74,78 +120,56 @@ class EpisodeState:
         for chunk in document.chunks:
             self.ingest_chunk(chunk, "read_document")
 
-    def ingest_chunk(self, chunk: CorpusChunk, source_tool: str, turn: Optional[int] = None) -> bool:
-        self.seen_chunk_ids.add(chunk.chunk_id)
-        item_id = chunk.doc_id
-        candidate = self.candidates.get(item_id)
-        if candidate is None:
-            candidate = Candidate(
-                item_id=item_id,
-                doc_id=chunk.doc_id,
-                chunk_ids=[chunk.chunk_id],
-                snippet=chunk.content[:240],
-                score=chunk.score,
-                source_tool=source_tool,
-                seen_at_turn=self.turn if turn is None else turn,
-            )
-            self.candidates[item_id] = candidate
-            self._update_graph(item_id, chunk.content)
-            return True
-        if chunk.chunk_id not in candidate.chunk_ids:
-            candidate.chunk_ids.append(chunk.chunk_id)
-        candidate.score = max(candidate.score, chunk.score)
-        self.duplicate_count += 1
-        return False
+    def ingest_chunk(self, chunk: CorpusChunk, source_tool: str) -> bool:
+        """Record a retrieved chunk as seen, and feed it to C1/C3 if enabled.
 
-    def _update_graph(self, item_id: str, content: str) -> None:
-        entities = set(re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b|\b\d{4}\b", content))
-        for entity in entities:
-            self.evidence_graph.setdefault(entity, set()).add(item_id)
+        This never implicitly enables a component: if C1 is OFF, no
+        candidate is created; if C3 is OFF, the graph is not updated. The
+        return value reports whether this was the first time this
+        document was seen (used for turn bookkeeping), independent of
+        whether C1 exists to record it as a "candidate."
+        """
+        is_new_chunk = chunk.chunk_id not in self.seen_chunk_ids
+        self.seen_chunk_ids.add(chunk.chunk_id)
+
+        is_new_candidate = False
+        if self.candidate_pool is not None:
+            is_new_candidate = self.candidate_pool.ingest_chunk(chunk, source_tool, self.turn)
+            if is_new_candidate and self.evidence_graph is not None:
+                self.evidence_graph.update(chunk.doc_id, chunk.content)
+            return is_new_candidate
+
+        return is_new_chunk
 
     def curate(self, add_ids: List[str], remove_ids: List[str], importance: Dict[str, str], rationale: str = "") -> Dict[str, Any]:
-        for item_id in remove_ids:
-            self.curated.pop(item_id, None)
-        added = []
-        rejected = []
-        for item_id in add_ids:
-            if item_id not in self.candidates:
-                continue
-            level = importance.get(item_id, "fair")
-            if level not in IMPORTANCE_RANKS:
-                level = "fair"
-            if item_id in self.curated:
-                self.curated[item_id].importance = level
-                if rationale:
-                    self.curated[item_id].rationale = rationale
-                continue
-            if len(self.curated) >= self.max_curated_docs:
-                worst_id = max(self.curated, key=lambda value: IMPORTANCE_RANKS[self.curated[value].importance])
-                worst_rank = IMPORTANCE_RANKS[self.curated[worst_id].importance]
-                if IMPORTANCE_RANKS[level] >= worst_rank:
-                    rejected.append(item_id)
-                    continue
-                self.curated.pop(worst_id)
-            self.curated[item_id] = CuratedItem(item_id, level, rationale, self.turn)
-            added.append(item_id)
-        return {"added": added, "removed": remove_ids, "rejected": rejected, "size": len(self.curated)}
+        return self.require_curated_set().curate(add_ids, remove_ids, importance, rationale, self.turn)
 
     def ordered_curated_ids(self) -> List[str]:
-        return sorted(self.curated, key=lambda item_id: (IMPORTANCE_RANKS[self.curated[item_id].importance], item_id))
+        if self.curated_set is None:
+            return []
+        return self.curated_set.ordered_curated_ids()
 
     def cache_key(self, claim: str, item_id: str) -> str:
-        return f"{item_id}:{claim.strip().lower()}"
+        return VerificationCache.cache_key(claim, item_id)
 
     def snapshot(self) -> Dict[str, Any]:
         return {
             "query": self.query,
             "turn": self.turn,
-            "candidate_ids": list(self.candidates),
-            "curated": {item_id: item.importance for item_id, item in self.curated.items()},
+            "enabled_components": {
+                "candidate_pool": self.enable_candidate_pool,
+                "curated_set": self.enable_curated_set,
+                "evidence_graph": self.enable_evidence_graph,
+                "verification_cache": self.enable_verification_cache,
+                "sufficiency_check": self.enable_sufficiency_check,
+            },
+            "candidate_pool": self.candidate_pool.snapshot() if self.candidate_pool else None,
+            "curated_set": self.curated_set.snapshot() if self.curated_set else None,
             "document_ids": list(self.document_store),
-            "evidence_graph": {entity: sorted(doc_ids) for entity, doc_ids in self.evidence_graph.items()},
-            "verification_cache_size": len(self.verification_cache),
+            "evidence_graph": self.evidence_graph.snapshot() if self.evidence_graph else None,
+            "verification_cache": self.verification_cache.snapshot() if self.verification_cache else None,
+            "sufficiency": self.sufficiency.snapshot() if self.sufficiency else None,
             "search_count": len(self.search_history),
             "terminated": self.terminated,
             "termination_reason": self.termination_reason,
-            "duplicate_count": self.duplicate_count,
         }
